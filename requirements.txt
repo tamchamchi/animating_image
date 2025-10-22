@@ -1,0 +1,9 @@
+google-generativeai
+numpy
+opencv-python
+Pillow
+segment-anything
+supervision
+transformers
+accelerate
+requests
