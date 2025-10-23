@@ -1,13 +1,22 @@
-from abc import ABC, abstractmethod
-from typing import List
 import numpy as np
+import torch
+from PIL import Image
+from typing import List
 
-class IBgDecomposer(ABC):
-    @abstractmethod
+from objectclear.pipelines import ObjectClearPipeline
+from objectclear.utils import resize_by_short_side
+from .interface import IBgDecomposer
+
+class ObjectClearDecomposer(IBgDecomposer):
     def __init__(self, device=None):
-        pass
+        self.device = device or ("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.pipe = ObjectClearPipeline.from_pretrained_with_custom_modules(
+            "jixin0101/ObjectClear",
+            torch_dtype=torch.float16 if "cuda" in self.device else torch.float32,
+            apply_attention_guided_fusion=True,
+            variant="fp16" if "cuda" in self.device else None
+        ).to(self.device)
 
-    @abstractmethod
     def decompose(self, image: np.ndarray, masks: List[np.ndarray]) -> np.ndarray:
         """
         Inpaint the given object masks in the image.
@@ -24,21 +33,14 @@ class IBgDecomposer(ABC):
         np.ndarray
             Image after inpainting.
         """
-<<<<<<< HEAD
-        pass
-=======
-        # Combine all object masks into a single binary mask
         combined_mask = np.clip(np.sum(masks, axis=0), 0, 1).astype(np.uint8) * 255
 
-        # Convert to PIL images
         image_pil = Image.fromarray(image)
         mask_pil = Image.fromarray(combined_mask)
 
-        # Resize both for model input
         image_resized = resize_by_short_side(image_pil, 512, Image.BICUBIC)
         mask_resized = resize_by_short_side(mask_pil, 512, Image.NEAREST)
 
-        # Run inpainting
         with torch.no_grad(), torch.cuda.amp.autocast(enabled=("cuda" in self.device)):
             result = self.pipe(
                 prompt="",
@@ -56,4 +58,3 @@ class IBgDecomposer(ABC):
         cleaned_image = result.images[0].resize(image_pil.size)
 
         return np.array(cleaned_image)
->>>>>>> f17307da0b485d7c7ee91da9e765ad7edba5b76d

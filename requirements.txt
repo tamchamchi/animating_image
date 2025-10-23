@@ -1,0 +1,6 @@
+transformers
+segment-anything
+diffusers
+torch
+torchvision
+ultralytics
