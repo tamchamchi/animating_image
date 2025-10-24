@@ -82,16 +82,10 @@ if __name__ == "__main__":
         # 1. Tạo mask riêng (nền đen, đối tượng màu trắng)
         single_mask_image = np.zeros((H, W), dtype=np.uint8)
         single_mask_image[mask > 0] = 255
-        
-        # 2. Lưu mask nhị phân (màu trắng) ra file PNG
-        cv2.imwrite(os.path.join(OUTPUT_DIR, f"mask_{prompt}_binary.png"), single_mask_image)
-        print(f"  - Đã lưu mask nhị phân: mask_{prompt}_binary.png")
 
         # 3. Tạo mask màu cho visualization (nền đen)
         colored_mask_image = np.zeros((H, W, 3), dtype=np.uint8)
         colored_mask_image[mask > 0] = mask_color
-        cv2.imwrite(os.path.join(OUTPUT_DIR, f"mask_{prompt}_colored.png"), colored_mask_image)
-        print(f"  - Đã lưu mask màu: mask_{prompt}_colored.png")
         # -----------------------------------------------------------
         
         # Luôn thêm mask màu vào ảnh tổng hợp 
@@ -134,8 +128,5 @@ if __name__ == "__main__":
             
     # Lưu ảnh gốc đã được chú thích (chỉ có mask và bbox của foreground)
     cv2.imwrite(os.path.join(OUTPUT_DIR, "2_annotated_image_with_masks_and_bboxes.jpg"), annotated_image)
-    
-    # Lưu ảnh tổng hợp mask của TẤT CẢ đối tượng (nền đen)
-    cv2.imwrite(os.path.join(OUTPUT_DIR, "3_combined_object_masks_only.png"), combined_object_mask_viz)
 
     print(f"\nĐã lưu ảnh kết quả vào thư mục '{OUTPUT_DIR}'. Vui lòng kiểm tra thư mục này.")

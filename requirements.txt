@@ -1,9 +1,17 @@
+# Yêu cầu phiên bản Python, khớp với môi trường Colab của bạn
+python~=3.12
+
+# LƯU Ý QUAN TRỌNG:
+# Thư viện 'torch' và 'torchvision' KHÔNG được bao gồm ở đây.
+# Chúng phải được cài đặt thủ công TRƯỚC KHI chạy file này.
+# Vui lòng đọc kỹ hướng dẫn trong file README.md.
+
+# Thư viện chính
+accelerate
 google-generativeai
 numpy
 opencv-python
 Pillow
-segment-anything
-supervision
-transformers
-accelerate
 requests
+segment-anything
+transformers
