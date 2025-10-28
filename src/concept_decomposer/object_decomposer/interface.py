@@ -1,20 +1,23 @@
+# interface.py
 from abc import ABC, abstractmethod
+from typing import List, Dict
 import numpy as np
 
 class IObjectDecomposer(ABC):
+    """
+    Giao diện trừu tượng cho các lớp phân tách đối tượng.
+    """
     @abstractmethod
-    def decompose(prompt_i: list[str], image: np.ndarray, ) -> dict:
+    def decompose(self, prompt_i: List[str], image: np.ndarray) -> Dict[str, Dict]:
         """
-        Decompose the input image into separate objects, excluding the background.
-
+        Phân tách ảnh thành các đối tượng/mask dựa trên danh sách các prompt.
+        
         Args:
-            prompt_i (list[str]): A list of object descriptions or prompts.
-            image (np.ndarray): The input image containing multiple objects.
-
+            prompt_i: Danh sách các chuỗi mô tả đối tượng cần tìm (ví dụ: ["dog", "cat", "sky"]).
+            image: Ảnh đầu vào dưới dạng numpy array (BGR).
+            
         Returns:
-            dict: A dictionary containing information for each object, including:
-                  - image: the cropped image of the object
-                  - mask: the segmentation mask of the object
-                  - bounding_box: the bounding box coordinates of the object
+            Dict: Một dictionary, với key là prompt, value là dictionary chứa 
+                  "is_background", "image" (ảnh đã cắt), "mask", "bounding_box".
         """
         pass
