@@ -3,8 +3,8 @@ import torch
 from PIL import Image
 from typing import List
 
-from objectclear.pipelines import ObjectClearPipeline
-from objectclear.utils import resize_by_short_side
+from .objectclear.pipelines import ObjectClearPipeline
+from .objectclear.utils import resize_by_short_side
 from .interface import IBgDecomposer
 
 class ObjectClearDecomposer(IBgDecomposer):

@@ -1,7 +1,6 @@
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
-# from interface import IBgDecomposer
 from abc import ABC
 from typing import List
 import numpy as np
@@ -9,7 +8,7 @@ import torch
 from PIL import Image
 import sys, os
 # In test.py, change:
-from bg_decomposer import ObjectClearDecomposer  # Update this line
+from .bg_decomposer import ObjectClearDecomposer  # Update this line
 
 # And update the initialization:
 decomposer = ObjectClearDecomposer(device="cuda" if torch.cuda.is_available() else "cpu")
@@ -27,10 +26,12 @@ mask = np.array(Image.open(mask_path).convert('L'))  # Ensure the mask is graysc
 masks = [mask]  # Add more masks if needed
 
 # Initialize IBgDecomposer
-decomposer = IBgDecomposer(device="cuda" if torch.cuda.is_available() else "cpu")
+# decomposer = IBgDecomposer(device="cuda" if torch.cuda.is_available() else "cpu")
 
 # Decompose the image by inpainting the object mask
 result_image = decomposer.decompose(image, masks)
+image = Image.fromarray(result_image)
+image.save("output.png")
 
 # Visualize the result
 fig, axes = plt.subplots(1, 2, figsize=(12, 6))
