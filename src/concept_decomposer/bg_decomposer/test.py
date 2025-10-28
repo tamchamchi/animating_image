@@ -1,12 +1,10 @@
-import numpy as np
-from PIL import Image
+import os
+
 import matplotlib.pyplot as plt
-from abc import ABC
-from typing import List
 import numpy as np
 import torch
 from PIL import Image
-import sys, os
+
 # In test.py, change:
 from .bg_decomposer import ObjectClearDecomposer  # Update this line
 
