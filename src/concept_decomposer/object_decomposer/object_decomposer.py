@@ -1,5 +1,5 @@
-from interface import IObjectDecomposer
-from utils import compute_bbox_from_mask, create_mask_visualization
+from .interface import IObjectDecomposer
+from .utils import compute_bbox_from_mask, create_mask_visualization
 import numpy as np
 import cv2
 from typing import List, Dict, Optional, Tuple
@@ -15,7 +15,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Grounding DINO sẽ được tải tự động từ Hugging Face
 GROUNDING_DINO_HF_MODEL = "IDEA-Research/grounding-dino-tiny"
-SAM_CHECKPOINT_PATH = "checkpoints/sam_vit_h_4b8939.pth" # Đường dẫn file đã tải
+SAM_CHECKPOINT_PATH = "/home/anhndt/animating_image/src/concept_decomposer/object_decomposer/checkpoints/sam_vit_h_4b8939.pth" # Đường dẫn file đã tải
 SAM_MODEL_TYPE = "vit_h"
 BOX_THRESHOLD = 0.35
 TEXT_THRESHOLD = 0.25

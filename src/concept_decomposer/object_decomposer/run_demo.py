@@ -3,7 +3,7 @@
 import numpy as np
 import cv2 
 import requests
-from object_decomposer import ConcreteObjectDecomposer 
+from .object_decomposer import ConcreteObjectDecomposer 
 import os 
 from typing import Optional
 
