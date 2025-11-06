@@ -1,15 +1,17 @@
 from abc import ABC, abstractmethod
-import numpy as np
+
+from PIL import Image
+
 
 class IObjectDecomposer(ABC):
     @abstractmethod
-    def decompose(prompt_i: list[str], image: np.ndarray, ) -> dict:
+    def decompose(prompt_i: list[str], image: Image) -> dict:
         """
         Decompose the input image into separate objects, excluding the background.
 
         Args:
             prompt_i (list[str]): A list of object descriptions or prompts.
-            image (np.ndarray): The input image containing multiple objects.
+            image (Image): The input image containing multiple objects.
 
         Returns:
             dict: A dictionary containing information for each object, including:

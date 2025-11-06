@@ -14,8 +14,11 @@ venv/
 .vscode/
 .idea/
 
+images/
+
 # Other temporary files
 *.log
 *.tmp
 *.pth
+*.pt
 .DS_Store
