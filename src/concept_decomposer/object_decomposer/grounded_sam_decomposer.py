@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import supervision as sv
 from pathlib import Path
-from typing import List, Tuple, Dict, Any
+from typing import List, Dict, Any
 from supervision.draw.color import ColorPalette
 
 from sam2.build_sam import build_sam2
@@ -67,14 +67,15 @@ class GroundedSAMDecomposer(IObjectDecomposer):
         visualize: bool = False,
         output_dir: str = "outputs",
         custom_color_map: List[str] = None,
-    ) -> Tuple[List[np.ndarray], Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """
         Detect and segment objects in an image using text prompts.
 
         Returns:
-            Tuple[List[np.ndarray], dict]:
-                - List of binary masks
-                - Metadata dictionary with per-prompt grouping
+            dict: A dictionary containing information for each object, including:
+                - image: the cropped image of the object
+                - mask: the segmentation mask of the object
+                - bounding_box: the bounding box coordinates of the object
         """
         try:
             os.makedirs(output_dir, exist_ok=True)
@@ -102,49 +103,56 @@ class GroundedSAMDecomposer(IObjectDecomposer):
 
             if len(boxes) == 0:
                 print("⚠️ No objects detected.")
-                return [], {"labels": [], "boxes": [], "scores": []}
+                return {}
 
             # --- 2. SAM2 segmentation ---
             self.sam2_predictor.set_image(image)
+            objects_info = {}
             masks = []
-            for box in boxes:
+
+            for i, box in enumerate(boxes):
                 x0, y0, x1, y1 = box.astype(int)
                 mask, _, _ = self.sam2_predictor.predict(box=np.array([x0, y0, x1, y1]))
-                masks.append(mask[0])
+                mask = mask[0].astype(np.uint8)
+                masks.append(mask)
 
-            masks = np.array(masks)
-            metadata = {"labels": labels, "boxes": boxes, "scores": scores}
+                # Cắt vùng ảnh theo mask
+                cropped = image.copy()
+                cropped[mask == 0] = 0
+                crop_region = cropped[y0:y1, x0:x1]
 
-            # --- 3. Group by prompt ---
-            prompt_to_objects = {}
-            for i, label in enumerate(labels):
-                key = label.lower().strip()
-                prompt_to_objects.setdefault(key, []).append({
-                    "mask": masks[i],
-                    "box": boxes[i],
+                label = labels[i].lower().strip()
+                obj_name = f"{label}_{i}"
+
+                objects_info[obj_name] = {
+                    "image": crop_region,
+                    "mask": mask,
+                    "bounding_box": [int(x0), int(y0), int(x1), int(y1)],
                     "score": float(scores[i]),
-                })
-            metadata["by_prompt"] = prompt_to_objects
+                    "label": label,
+                }
 
-            # --- 4. Visualization ---
+            # --- 3. Visualization ---
             if visualize:
-                self.visualize_results(
+                self._visualize_results(
                     image=image,
                     input_boxes=boxes,
                     labels=labels,
                     class_ids=class_ids,
-                    masks=masks,
+                    masks=np.array(masks),
                     output_dir=output_dir,
+                    objects_info=objects_info,
                     custom_color_map=custom_color_map,
                 )
 
-            return masks, metadata
+            print(f"✅ {len(objects_info)} objects decomposed successfully.")
+            return objects_info
 
         except Exception as e:
             raise RuntimeError(f"❌ Error during decomposition: {str(e)}") from e
-
+    
     # ---------------------------------------------------------------
-    def visualize_results(
+    def _visualize_results(
         self,
         image: np.ndarray,
         input_boxes: np.ndarray,
@@ -152,9 +160,10 @@ class GroundedSAMDecomposer(IObjectDecomposer):
         class_ids: np.ndarray,
         masks: np.ndarray,
         output_dir: str,
+        objects_info: Dict[str, Any],
         custom_color_map: List[str] = None,
     ):
-        """Visualize results and save masks per object."""
+        """Visualize and save results including per-object textures and masks."""
         img = image.copy()
 
         detections = sv.Detections(
@@ -169,7 +178,7 @@ class GroundedSAMDecomposer(IObjectDecomposer):
             else ColorPalette.DEFAULT
         )
 
-        # --- Visualization steps ---
+        # --- Combined visualization ---
         box_annotator = sv.BoxAnnotator(color=color_palette)
         annotated = box_annotator.annotate(scene=img.copy(), detections=detections)
 
@@ -179,19 +188,31 @@ class GroundedSAMDecomposer(IObjectDecomposer):
         mask_annotator = sv.MaskAnnotator(color=color_palette)
         annotated_with_mask = mask_annotator.annotate(scene=annotated, detections=detections)
 
-        # --- Save combined visuals ---
+        # --- Save combined visual ---
         cv2.imwrite(
             os.path.join(output_dir, "grounded_combined_visual.jpg"),
             cv2.cvtColor(annotated_with_mask, cv2.COLOR_RGB2BGR),
         )
 
-        # --- Save binary combined mask ---
+        # --- Save combined binary mask ---
         combined_mask = np.any(masks.astype(bool), axis=0).astype(np.uint8) * 255
         cv2.imwrite(os.path.join(output_dir, "mask_combined.jpg"), combined_mask)
 
-        # --- Save per-object masks ---
-        for i, label in enumerate(labels):
-            mask_path = os.path.join(output_dir, f"mask_{label}_{i}.png")
-            cv2.imwrite(mask_path, masks[i].astype(np.uint8) * 255)
+        # --- Save per-object textures & masks ---
+        for obj_name, obj_data in objects_info.items():
+            obj_dir = os.path.join(output_dir, obj_name)
+            os.makedirs(obj_dir, exist_ok=True)
 
-        print(f"✅ Visualization & masks saved to: {output_dir}")
+            # Save mask
+            mask_path = os.path.join(obj_dir, "mask.png")
+            cv2.imwrite(mask_path, obj_data["mask"].astype(np.uint8) * 255)
+
+            # Save texture
+            texture_path = os.path.join(obj_dir, "texture.png")
+            cropped_img = obj_data["image"]
+            cv2.imwrite(texture_path, cv2.cvtColor(cropped_img, cv2.COLOR_RGB2BGR))
+
+            obj_data["mask_path"] = mask_path
+            obj_data["texture_path"] = texture_path
+
+        print(f"✅ Visualization & textures saved to: {output_dir}")
