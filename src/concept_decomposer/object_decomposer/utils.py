@@ -16,6 +16,10 @@ def compute_bbox_from_mask(mask: np.ndarray) -> Optional[Tuple[int, int, int, in
 
 def create_mask_visualization(mask: np.ndarray) -> np.ndarray:
     """Tạo ảnh 3 kênh màu trắng (255) cho mask và đen (0) cho nền."""
+    # Đảm bảo mask đầu vào là 1 kênh
+    if mask.ndim == 3:
+        mask = mask[..., 0]
+        
     mask_3ch = np.stack([mask] * 3, axis=-1)
     mask_3ch = (mask_3ch > 0).astype(np.uint8) * 255
     return mask_3ch
