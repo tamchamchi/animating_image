@@ -71,5 +71,5 @@ if __name__ == "__main__":
         cv2.imwrite(os.path.join(current_output_dir, "1_output_mask.png"), mask_image_viz) 
         cv2.imwrite(os.path.join(current_output_dir, "2_output_texture.png"), full_texture_image)
 
-    print(f"\n\n--- HOÀN TẤT ---")
+    print("\n\n--- HOÀN TẤT ---")
     print(f"Đã xử lý tất cả {len(image_paths)} ảnh. Vui lòng kiểm tra thư mục '{BASE_OUTPUT_DIR}'.")

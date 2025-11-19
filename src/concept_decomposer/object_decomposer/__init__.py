@@ -1,5 +1,5 @@
-from .grounded_sam_decomposer import GroundedSAMDecomposer
+# from .grounded_sam_decomposer import GroundedSAMDecomposer
 
-__all__ = [
-    "GroundedSAMDecomposer"
-]
+# __all__ = [
+#     "GroundedSAMDecomposer"
+# ]
