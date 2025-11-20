@@ -3,7 +3,7 @@ from .interface import IObjectDecomposer
 from .utils import compute_bbox_from_mask, create_mask_visualization
 import numpy as np
 import cv2
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, Optional
 from PIL import Image
 
 # --- IMPORTS CHO GROUNDINGDINO VÀ SAM ---
