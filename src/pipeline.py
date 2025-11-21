@@ -20,9 +20,9 @@ pose_estimator = MMPoseEstimator(cfg_path=cfg_path, ckpt_path=ckpt_path, device=
 animator = MetaAnimator()
 
 #==============================================
-char_name = "char9"
-char_dir = "/home/anhndt/animating_image/src/configs/characters/char9"
-action = "walking"
+char_name = "char4"
+char_dir = "/home/anhndt/animating_image/src/configs/characters/char4"
+action = "laughing"
 
 joint_overlay_path = f"{char_dir}/joint_overlay.png"
 char_cfg_path = f"{char_dir}/char_cfg.yaml"
