@@ -4,6 +4,10 @@ import numpy as np
 
 class IBgDecomposer(ABC):
     @abstractmethod
+    def __init__(self, device=None):
+        pass
+
+    @abstractmethod
     def decompose(self, image: np.ndarray, masks: List[np.ndarray]) -> np.ndarray:
         """
         Inpaint the given object masks in the image.

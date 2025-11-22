@@ -14,13 +14,20 @@ venv/
 .vscode/
 .idea/
 
+<<<<<<< HEAD
 images/
 
+=======
+>>>>>>> origin/main
 # Other temporary files
 *.log
 *.tmp
 *.pth
+<<<<<<< HEAD
 *.pt
 .DS_Store
 
 external/
+=======
+.DS_Store
+>>>>>>> origin/main
