@@ -62,3 +62,25 @@ def build_mcv_config(action: str, char_dir: str, char_name: str) -> str:
         yaml.dump(cfg, f)
 
     return str(output_path)
+
+PROMPT_SUBJECT_STYLE_TRANSFER = """
+Use the uploaded image strictly as a reference for drawing style.
+Create an image in a hand-drawn style of {subject}.
+KEEP IMAGE STRUCTURE.
+Both arms extended to the sides. Both legs standing straight.
+"""
+
+PROMPT_IMAGE_STYLE_TRANSFER = """
+Use the uploaded image strictly as a reference for drawing style.
+Recreate the input image in a hand-drawn style.
+KEEP THE ORIGINAL POSE, STRUCTURE, AND COMPOSITION.
+Ensure both arms remain extended to the sides and both legs remain standing straight as in the input.
+"""
+
+PROMPT_BG_STYLE_TRANSFER = """
+Create a 2D side-scrolling game background designed for horizontal tiling.
+The scene should be a stylized cartoon beach environment with clear, separate layers: sky, distant islands, ocean, and foreground sand.
+Each layer must be seamless so they can repeat horizontally.
+Use vibrant colors and soft gradients similar to a platformer game.
+Do not include characters, obstacles, or UI.
+Produce a wide panoramic image suitable for parallax scrolling in a 2D game."""
