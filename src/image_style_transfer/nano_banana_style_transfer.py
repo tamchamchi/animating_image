@@ -57,7 +57,7 @@ class NanoBananaStyleTransfer(IStyleTransfer):
         url = GEMINI_URL_TEMPLATE.format(model=self.model_name)
 
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "x-goog-api-key": self.api_key,
             "Content-Type": "application/json"
         }
 
