@@ -41,11 +41,11 @@ animation_generation_pipeline = AnimationGenerationPipeline(
 
 data = AnimationPipelineInput(
     style_ref_path="/home/anhndt/animating_image/src/configs/style_ref/image_ref_2.png",
-    content_image_path="/home/anhndt/animating_image/src/configs/characters/char11/input.png",
+    content_image_path="/home/anhndt/animating_image/src/configs/characters/char10/object_clean.png",
     system_prompt=PROMPT_IMAGE_STYLE_TRANSFER,
     char_folder=Path("/home/anhndt/animating_image/src/configs/characters"),
-    char_name="char11",
-    actions=["jumping", "walking", "running", "dancing"]
+    char_name="char10",
+    actions=["jumping", "running", "jesse_dancing"]
 )
 
 ## Inference

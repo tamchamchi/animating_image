@@ -33,26 +33,26 @@ class AnimationGenerationPipeline:
         results = {}
 
         # Step 1: Style Transfer
-        image_stylized = self.style_transfer.transfer(
+        object_stylized = self.style_transfer.transfer(
             style_ref=data["style_ref"],
             image=data["content_image"],
             prompt=data["prompt"],
         )
-        stylized_path = data["char_folder"] / "image_stylized.png"
-        image_stylized.save(stylized_path)
+        stylized_path = data["char_folder"] / "object_stylized.png"
+        object_stylized.save(stylized_path)
 
-        image_stylized_np = np.array(image_stylized)
-        results["image_stylized"] = image_stylized
+        object_stylized_np = np.array(object_stylized)
+        results["object_stylized"] = object_stylized
         results["stylized_path"] = stylized_path
 
         # Step 2: Segmentation
-        seg_result = self.object_decomposer.decompose(image_stylized_np)
+        seg_result = self.object_decomposer.decompose(object_stylized_np)
         mask_image_viz = seg_result["mask_image_viz"]
         bbox = seg_result["bounding_box"]
         x1, y1, x2, y2 = self._expand_bbox(bbox, pad=4)
 
         mask_crop = mask_image_viz[y1:y2, x1:x2]
-        image_crop = image_stylized_np[y1:y2, x1:x2]
+        image_crop = object_stylized_np[y1:y2, x1:x2]
 
         mask_path = data["char_folder"] / "mask.png"
         texture_path = data["char_folder"] / "texture.png"
