@@ -19,7 +19,8 @@ class NanoBananaStyleTransfer(IStyleTransfer):
     def __init__(self, api_key: str, model_name: str = "gemini-2.5-flash-image"):
         super().__init__()
         if not api_key:
-            raise ValueError("API key must be provided either via .env or parameter")
+            raise ValueError(
+                "API key must be provided either via .env or parameter")
         self.api_key = api_key
         self.model_name = model_name
 
@@ -43,7 +44,8 @@ class NanoBananaStyleTransfer(IStyleTransfer):
 
         # Content image (optional)
         if image is not None:
-            parts.append({"text": "Content image to recreate in the above style:"})
+            parts.append(
+                {"text": "Content image to recreate in the above style:"})
             parts.append({
                 "inlineData": {"mimeType": "image/png", "data": self._encode_image(image)}
             })
@@ -52,7 +54,17 @@ class NanoBananaStyleTransfer(IStyleTransfer):
         if prompt is not None:
             parts.append({"text": prompt})
 
-        payload = {"contents": [{"role": "user", "parts": parts}]}
+        generation_cfg = {
+            "response_modalities": ['Image'],
+            "imageConfig": {
+                "aspectRatio": "1:1",
+            }
+        }
+
+        payload = {
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": generation_cfg
+        }
 
         url = GEMINI_URL_TEMPLATE.format(model=self.model_name)
 

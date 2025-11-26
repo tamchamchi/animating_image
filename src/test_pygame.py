@@ -25,7 +25,7 @@ COLOR_ERROR_PLACEHOLDER = (255, 0, 0)  # Red
 # Asset Configuration
 # NOTE: Update these paths to match your local file structure
 ASSET_SCALE = (256, 256)
-BASE_CHAR_PATH = "/home/anhndt/animating_image/src/configs/characters/char12/"  # Example relative path
+BASE_CHAR_PATH = "/home/anhndt/animating_image/src/configs/characters/char13/"  # Example relative path
 BG_IMAGE_PATH = "/home/anhndt/animating_image/src/configs/characters/char10/background_stylized.png"
 
 # =============================================================================
@@ -198,7 +198,7 @@ class Player:
         # 2. State Management & Animation Speed
         if self.is_jumping:
             self.set_state("jump")
-            self.frame_speed = 0.4
+            self.frame_speed = 0.5
         elif dx != 0:
             if abs(dx) > 5:
                 self.set_state("run")
