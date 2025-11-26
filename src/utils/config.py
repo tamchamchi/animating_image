@@ -56,12 +56,12 @@ def build_mcv_config(action: str, char_dir: str, char_name: str) -> str:
 
     cfg = replace(cfg)
 
-
     # Save MVC file new
     with open(output_path, "w") as f:
         yaml.dump(cfg, f)
 
     return str(output_path)
+
 
 PROMPT_SUBJECT_STYLE_TRANSFER = """
 Use the uploaded image strictly as a reference for drawing style.
@@ -74,7 +74,7 @@ PROMPT_IMAGE_STYLE_TRANSFER = """
 Use the uploaded image strictly as a reference for drawing style.
 Recreate the input image in a hand-drawn style.
 KEEP THE ORIGINAL POSE, STRUCTURE, AND COMPOSITION.
-Ensure both arms remain extended to the sides and both legs remain standing straight as in the input.
+Ensure both arms remain extended to the sides as in the style reference imageinput.
 """
 
 PROMPT_BG_STYLE_TRANSFER = """
@@ -84,3 +84,9 @@ Each layer must be seamless so they can repeat horizontally.
 Use vibrant colors and soft gradients similar to a platformer game.
 Do not include characters, obstacles, or UI.
 Produce a wide panoramic image suitable for parallax scrolling in a 2D game."""
+
+PROMPT_SUBJECT_GENERATION = """
+{subject} with both feet pointing to the right, drawn in the style of a colored pencil sketch on white paper. 
+Use a naive, childlike art style with visible pencil stroke textures. 
+Simple facial features (dot eyes), cute proportions, and a hand-drawn, 
+grainy aesthetic. Isolated on white background."""
