@@ -8,6 +8,7 @@ from .utils.config import PROMPT_IMAGE_STYLE_TRANSFER
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+import subprocess
 
 # import cv2
 
@@ -52,6 +53,10 @@ data = AnimationPipelineInput(
 
 animation_generation_pipeline.run(data)
 
+subprocess.run(
+    ["python3", "test_pygame.py"],
+    check=True
+)
 # #==============================================
 # char_name = "char10"
 # char_dir = f"/home/anhndt/animating_image/src/configs/characters/{char_name}"
