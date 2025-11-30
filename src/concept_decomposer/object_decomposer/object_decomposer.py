@@ -16,7 +16,7 @@ import torchvision
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 GROUNDING_DINO_HF_MODEL = "IDEA-Research/grounding-dino-tiny"
-SAM_CHECKPOINT_PATH = "checkpoints/sam_vit_h_4b8939.pth" 
+SAM_CHECKPOINT_PATH = "/mnt/mmlab2024nas/anhndt/sam_vit_h_4b8939.pth" 
 SAM_MODEL_TYPE = "vit_h"
 BOX_THRESHOLD = 0.35 
 
