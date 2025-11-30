@@ -40,7 +40,7 @@ pose_estimator = MMPoseEstimator(
 animator = MetaAnimator()
 
 animation_generation_pipeline = AnimationGenerationPipeline(
-    style_transfer=style_transfer,
+    # style_transfer=style_transfer,
     object_decomposer=object_decomposer,
     pose_estimator=pose_estimator,
     animator=animator
@@ -49,21 +49,20 @@ animation_generation_pipeline = AnimationGenerationPipeline(
 if __name__ == "__main__":
 
     style_ref_path = "/home/anhndt/animating_image/src/configs/style_ref/image_ref_3.png"
-    content_image_path = "/home/anhndt/animating_image/src/configs/characters/char12/input.png"
+    content_image_path = "/home/anhndt/animating_image/src/configs/characters/char15/input.png"
     char_folder = Path("/home/anhndt/animating_image/src/configs/characters")
-    char_name = "char13"
+    char_name = "char15"
 
     try:
         style_ref = Image.open(style_ref_path).convert("RGB")
-        # content_image = Image.open(content_image_path).convert("RGB")
+        content_image = Image.open(content_image_path).convert("RGB")
     except Exception as e:
         print(e)
 
-    prompt = "a child with blue glass wearing a red hoodie and green pant"
-    prompt = PROMPT_SUBJECT_GENERATION.format(subject=prompt)
+    # prompt = "a child with blue glass wearing a red hoodie and green pant"
+    # prompt = PROMPT_SUBJECT_GENERATION.format(subject=prompt)
 
-    content_image = image_generator.generate(prompt=prompt)
-    content_image
+    # content_image = image_generator.generate(prompt=prompt)
 
     data = AnimationPipelineInput(
         style_ref=style_ref,
@@ -71,7 +70,7 @@ if __name__ == "__main__":
         system_prompt=PROMPT_IMAGE_STYLE_TRANSFER,
         char_folder=char_folder,
         char_name=char_name,
-        actions=["standing", "jumping", "running", "jesse_dancing"]
+        actions=["standing", "jumping", "running", "jesse_dancing", "waving"]
     )
 
     animation_generation_pipeline.run(data)
