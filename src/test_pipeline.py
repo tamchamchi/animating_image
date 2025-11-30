@@ -15,7 +15,7 @@ from .image_style_transfer.nano_banana_style_transfer import NanoBananaStyleTran
 from .pipeline.animation_pipeline import AnimationGenerationPipeline
 from .pipeline.input_data import AnimationPipelineInput
 from .pose_estimator.mmpose_estimator import MMPoseEstimator
-from .utils.config import PROMPT_IMAGE_STYLE_TRANSFER, PROMPT_SUBJECT_GENERATION
+from .utils.prompt import PROMPT_IMAGE_STYLE_TRANSFER, PROMPT_SUBJECT_GENERATION
 from .text_to_image import NanoBananaGenerator
 
 load_dotenv()
