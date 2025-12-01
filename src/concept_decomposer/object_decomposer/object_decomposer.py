@@ -18,7 +18,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 GROUNDING_DINO_HF_MODEL = "IDEA-Research/grounding-dino-tiny"
 SAM_CHECKPOINT_PATH = "/mnt/mmlab2024nas/anhndt/sam_vit_h_4b8939.pth" 
 SAM_MODEL_TYPE = "vit_h"
-BOX_THRESHOLD = 0.35 
+BOX_THRESHOLD = 0.2
 
 class GroundedSamIntegrator:
     """Tích hợp Grounding DINO (HF) và SAM."""
@@ -124,7 +124,7 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
             "mask_image_viz": mask_image_viz
         }
 
-    def detect_objects(self, image: np.ndarray, prompts: List[str], threshold: float = 0.40) -> List[Dict]:
+    def detect_objects(self, image: np.ndarray, prompts: List[str], threshold: float = 0.20) -> List[Dict]:
         """
         Args:
             threshold (float): Ngưỡng tin cậy. Tăng lên 0.40-0.45 để lọc bớt rác.
@@ -174,3 +174,39 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
                 results.append(item)
 
         return results
+    
+    def generate_masks_from_boxes(self, image: np.ndarray, detections: List[Dict]) -> List[Dict]:
+        """
+        Input: Ảnh gốc và danh sách kết quả chứa bbox.
+        Output: Danh sách kết quả đã được bổ sung thêm trường 'mask'.
+        """
+        if not detections:
+            return []
+
+        # 1. Setup ảnh cho SAM (Chỉ cần làm 1 lần cho cả bức ảnh)
+        # SAM yêu cầu ảnh RGB
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        self.sam_integrator.sam_predictor.set_image(image_rgb)
+
+        # 2. Duyệt qua từng bbox để tạo mask
+        for det in detections:
+            bbox = det['bbox'] # [x1, y1, x2, y2]
+            
+            # Chuyển bbox thành numpy array đúng format SAM yêu cầu
+            box_np = np.array(bbox)
+
+            # SAM predict: Dùng box làm gợi ý
+            masks, _, _ = self.sam_integrator.sam_predictor.predict(
+                point_coords=None,
+                point_labels=None,
+                box=box_np[None, :], # Format [1, 4]
+                multimask_output=False # Chỉ lấy 1 mask tốt nhất
+            )
+            
+            # masks trả về shape [1, H, W], ta lấy [H, W]
+            mask_binary = masks[0].astype(np.uint8) # 0 và 1
+            
+            # Lưu mask vào dictionary kết quả
+            det['mask'] = mask_binary
+
+        return detections
