@@ -17,8 +17,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 GROUNDING_DINO_HF_MODEL = "IDEA-Research/grounding-dino-tiny"
 SAM_CHECKPOINT_PATH = "/home/anhndt/animating_image/external/checkpoints/sam_vit_h_4b8939.pth"
 SAM_MODEL_TYPE = "vit_h"
-BOX_THRESHOLD = 0.35  # Ngưỡng tin cậy cho BBox
-
+BOX_THRESHOLD = 0.2
 
 class GroundedSamIntegrator:
     """Tích hợp Grounding DINO (HF) và SAM."""
@@ -133,3 +132,90 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
             # <-- Đây là output_mask.png (trắng/đen)
             "mask_image_viz": mask_image_viz
         }
+
+    def detect_objects(self, image: np.ndarray, prompts: List[str], threshold: float = 0.20) -> List[Dict]:
+        """
+        Args:
+            threshold (float): Ngưỡng tin cậy. Tăng lên 0.40-0.45 để lọc bớt rác.
+        """
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image_pil = Image.fromarray(image_rgb)
+        
+        results = []
+
+        # GroundingDINO cho phép dùng dấu . để ngăn cách các từ đồng nghĩa trong 1 lần chạy
+        # Nhưng để dễ kiểm soát tên output, ta vẫn loop qua từng prompt
+        
+        for prompt_text in prompts:
+            # Lưu ý: Cần truyền threshold vào hàm predict_boxes nếu bạn muốn chỉnh sâu bên trong,
+            # nhưng ở đây ta lọc output cũng được.
+            
+            # Gọi hàm dự đoán (mặc định threshold trong model config là 0.35, ta sẽ lọc lại ở dưới)
+            boxes, scores = self.sam_integrator.predict_boxes(image_pil, prompt_text)
+            
+            if len(boxes) == 0:
+                continue
+
+            # --- LỌC NGƯỠNG (THRESHOLD FILTERING) ---
+            # Chỉ lấy những box có score >= threshold truyền vào (VD: 0.40)
+            keep_indices = scores >= threshold
+            boxes = boxes[keep_indices]
+            scores = scores[keep_indices]
+            
+            if len(boxes) == 0: continue
+
+            # --- NMS (Non-Maximum Suppression) ---
+            boxes_tensor = torch.tensor(boxes, dtype=torch.float32)
+            scores_tensor = torch.tensor(scores, dtype=torch.float32)
+            
+            # iou_threshold=0.5: Giữ lại box tốt nhất nếu trùng nhau
+            nms_indices = torchvision.ops.nms(boxes_tensor, scores_tensor, iou_threshold=0.5)
+            
+            final_boxes = boxes[nms_indices.numpy()]
+            final_scores = scores[nms_indices.numpy()]
+
+            for box, score in zip(final_boxes, final_scores):
+                item = {
+                    "name": prompt_text, # Tên trả về
+                    "bbox": box.tolist(),
+                    "score": float(score)
+                }
+                results.append(item)
+
+        return results
+    
+    def generate_masks_from_boxes(self, image: np.ndarray, detections: List[Dict]) -> List[Dict]:
+        """
+        Input: Ảnh gốc và danh sách kết quả chứa bbox.
+        Output: Danh sách kết quả đã được bổ sung thêm trường 'mask'.
+        """
+        if not detections:
+            return []
+
+        # 1. Setup ảnh cho SAM (Chỉ cần làm 1 lần cho cả bức ảnh)
+        # SAM yêu cầu ảnh RGB
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        self.sam_integrator.sam_predictor.set_image(image_rgb)
+
+        # 2. Duyệt qua từng bbox để tạo mask
+        for det in detections:
+            bbox = det['bbox'] # [x1, y1, x2, y2]
+            
+            # Chuyển bbox thành numpy array đúng format SAM yêu cầu
+            box_np = np.array(bbox)
+
+            # SAM predict: Dùng box làm gợi ý
+            masks, _, _ = self.sam_integrator.sam_predictor.predict(
+                point_coords=None,
+                point_labels=None,
+                box=box_np[None, :], # Format [1, 4]
+                multimask_output=False # Chỉ lấy 1 mask tốt nhất
+            )
+            
+            # masks trả về shape [1, H, W], ta lấy [H, W]
+            mask_binary = masks[0].astype(np.uint8) # 0 và 1
+            
+            # Lưu mask vào dictionary kết quả
+            det['mask'] = mask_binary
+
+        return detections
