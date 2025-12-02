@@ -3,8 +3,9 @@ from .interface import IObjectDecomposer
 from .utils import compute_bbox_from_mask, create_mask_visualization
 import numpy as np
 import cv2
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from PIL import Image
+import torchvision
 
 # --- IMPORTS CHO GROUNDINGDINO VÀ SAM ---
 import torch
@@ -18,6 +19,7 @@ GROUNDING_DINO_HF_MODEL = "IDEA-Research/grounding-dino-tiny"
 SAM_CHECKPOINT_PATH = "/home/anhndt/animating_image/external/checkpoints/sam_vit_h_4b8939.pth"
 SAM_MODEL_TYPE = "vit_h"
 BOX_THRESHOLD = 0.2
+
 
 class GroundedSamIntegrator:
     """Tích hợp Grounding DINO (HF) và SAM."""
@@ -140,19 +142,20 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
         """
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image_pil = Image.fromarray(image_rgb)
-        
+
         results = []
 
         # GroundingDINO cho phép dùng dấu . để ngăn cách các từ đồng nghĩa trong 1 lần chạy
         # Nhưng để dễ kiểm soát tên output, ta vẫn loop qua từng prompt
-        
+
         for prompt_text in prompts:
             # Lưu ý: Cần truyền threshold vào hàm predict_boxes nếu bạn muốn chỉnh sâu bên trong,
             # nhưng ở đây ta lọc output cũng được.
-            
+
             # Gọi hàm dự đoán (mặc định threshold trong model config là 0.35, ta sẽ lọc lại ở dưới)
-            boxes, scores = self.sam_integrator.predict_boxes(image_pil, prompt_text)
-            
+            boxes, scores = self.sam_integrator.predict_boxes(
+                image_pil, prompt_text)
+
             if len(boxes) == 0:
                 continue
 
@@ -161,29 +164,31 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
             keep_indices = scores >= threshold
             boxes = boxes[keep_indices]
             scores = scores[keep_indices]
-            
-            if len(boxes) == 0: continue
+
+            if len(boxes) == 0:
+                continue
 
             # --- NMS (Non-Maximum Suppression) ---
             boxes_tensor = torch.tensor(boxes, dtype=torch.float32)
             scores_tensor = torch.tensor(scores, dtype=torch.float32)
-            
+
             # iou_threshold=0.5: Giữ lại box tốt nhất nếu trùng nhau
-            nms_indices = torchvision.ops.nms(boxes_tensor, scores_tensor, iou_threshold=0.5)
-            
+            nms_indices = torchvision.ops.nms(
+                boxes_tensor, scores_tensor, iou_threshold=0.5)
+
             final_boxes = boxes[nms_indices.numpy()]
             final_scores = scores[nms_indices.numpy()]
 
             for box, score in zip(final_boxes, final_scores):
                 item = {
-                    "name": prompt_text, # Tên trả về
+                    "name": prompt_text,  # Tên trả về
                     "bbox": box.tolist(),
                     "score": float(score)
                 }
                 results.append(item)
 
         return results
-    
+
     def generate_masks_from_boxes(self, image: np.ndarray, detections: List[Dict]) -> List[Dict]:
         """
         Input: Ảnh gốc và danh sách kết quả chứa bbox.
@@ -199,8 +204,8 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
 
         # 2. Duyệt qua từng bbox để tạo mask
         for det in detections:
-            bbox = det['bbox'] # [x1, y1, x2, y2]
-            
+            bbox = det['bbox']  # [x1, y1, x2, y2]
+
             # Chuyển bbox thành numpy array đúng format SAM yêu cầu
             box_np = np.array(bbox)
 
@@ -208,13 +213,13 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
             masks, _, _ = self.sam_integrator.sam_predictor.predict(
                 point_coords=None,
                 point_labels=None,
-                box=box_np[None, :], # Format [1, 4]
-                multimask_output=False # Chỉ lấy 1 mask tốt nhất
+                box=box_np[None, :],  # Format [1, 4]
+                multimask_output=False  # Chỉ lấy 1 mask tốt nhất
             )
-            
+
             # masks trả về shape [1, H, W], ta lấy [H, W]
-            mask_binary = masks[0].astype(np.uint8) # 0 và 1
-            
+            mask_binary = masks[0].astype(np.uint8)  # 0 và 1
+
             # Lưu mask vào dictionary kết quả
             det['mask'] = mask_binary
 
