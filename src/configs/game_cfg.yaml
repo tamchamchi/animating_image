@@ -1,0 +1,42 @@
+# ==========================================
+# GAME CONFIGURATION FILE
+# ==========================================
+
+# --- Display & Window Settings ---
+screen:
+  width: 1200
+  height: 800
+  fps: 60                      # Target Frames Per Second
+  caption: "Lab Platformer"    # Window title text
+
+# --- Physics Engine Parameters ---
+physics:
+  gravity: 0.8                 # Downward acceleration applied to entities
+  jump_force: -20              # Upward impulse (negative value moves up in Y-axis)
+  player_speed: 7              # Horizontal movement speed
+  collision_tolerance: 5       # Margin of error for collision detection (in pixels)
+
+# --- Animation Timing ---
+# Controls the playback speed multiplier for different states
+animation_speeds:
+  idle: 0.2
+  run: 0.3
+  jump: 0.3
+  dance: 0.2
+  speak: 0.2
+
+# --- Player Initialization ---
+player:
+  start_x: 400                 # Initial X coordinate spawn point
+  start_y: 300                 # Initial Y coordinate spawn point
+
+# --- Platform Visuals & Logic ---
+platform_style:
+  padding: 2                   # Padding to prevent the border from being clipped
+  border_color: [255, 255, 255, 80]  # Border color in RGBA (Red, Green, Blue, Alpha)
+  border_width: 2              # Thickness of the visible border line
+  mask_color: [255, 0, 0, 255] # Color used for collision mask generation (invisible to player)
+
+# --- Asset Management ---
+assets:
+  scale: [256, 256]            # Target dimensions [width, height] for asset resizing
