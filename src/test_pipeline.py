@@ -25,8 +25,8 @@ load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-cfg_path = "/home/anhndt/animating_image/external/mmpose_install/config.py"
-ckpt_path = "/home/anhndt/animating_image/external/mmpose_install/best_AP_epoch_72.pth"
+POSE_MODEL_CFG_PATH = os.getenv("POSE_MODEL_CFG_PATH")
+POSE_MODEL_CKPT_PATH = os.getenv("POSE_MODEL_CKPT_PATH")
 
 image_generator = NanoBananaGenerator(API_KEY)
 
@@ -35,12 +35,12 @@ style_transfer = NanoBananaStyleTransfer(API_KEY)
 object_decomposer = ConcreteObjectDecomposer()
 
 pose_estimator = MMPoseEstimator(
-    cfg_path=cfg_path, ckpt_path=ckpt_path, device=DEVICE)
+    cfg_path=POSE_MODEL_CFG_PATH, ckpt_path=POSE_MODEL_CKPT_PATH, device=DEVICE)
 
 animator = MetaAnimator()
 
 animation_generation_pipeline = AnimationGenerationPipeline(
-    # style_transfer=style_transfer,
+    style_transfer=style_transfer,
     object_decomposer=object_decomposer,
     pose_estimator=pose_estimator,
     animator=animator
@@ -59,10 +59,10 @@ if __name__ == "__main__":
     except Exception as e:
         print(e)
 
-    # prompt = "a child with blue glass wearing a red hoodie and green pant"
-    # prompt = PROMPT_SUBJECT_GENERATION.format(subject=prompt)
+    prompt = "a child with blue glass wearing a red hoodie and green pant"
+    prompt = PROMPT_SUBJECT_GENERATION.format(subject=prompt)
 
-    # content_image = image_generator.generate(prompt=prompt)
+    content_image = image_generator.generate(prompt=prompt)
 
     data = AnimationPipelineInput(
         style_ref=style_ref,
