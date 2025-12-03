@@ -15,22 +15,24 @@ os.chdir(project_root)
 
 # --- IMPORTS ---
 from src.animator.meta_animator import MetaAnimator  # noqa: E402
-from src.concept_decomposer.object_decomposer.object_decomposer import ConcreteObjectDecomposer # noqa: E402
-from src.image_style_transfer.nano_banana_style_transfer import NanoBananaStyleTransfer # noqa: E402
-from src.pipeline.animation_pipeline import AnimationGenerationPipeline # noqa: E402
-from src.pose_estimator.mmpose_estimator import MMPoseEstimator # noqa: E402
-from src.text_to_image import NanoBananaGenerator # noqa: E402
+from src.concept_decomposer.object_decomposer.object_decomposer import ConcreteObjectDecomposer  # noqa: E402
+from src.image_style_transfer.nano_banana_style_transfer import NanoBananaStyleTransfer  # noqa: E402
+from src.pipeline.animation_pipeline import AnimationGenerationPipeline  # noqa: E402
+from src.pose_estimator.mmpose_estimator import MMPoseEstimator  # noqa: E402
+from src.text_to_image import NanoBananaGenerator  # noqa: E402
 
 # Import Step Routers
-import steps.step1_character as step1 # noqa: E402
-import steps.step2_animation as step2 # noqa: E402
-# import steps.step3_background as step3 # noqa: E402
-# import steps.step4_export as step4 # noqa: E402
+import steps.step1_character as step1  # noqa: E402
+import steps.step2_animation as step2  # noqa: E402
+import steps.step3_background as step3 # noqa: E402
+import steps.step4_render as step4 # noqa: E402
 
 load_dotenv()
 st.set_page_config(page_title="AI Animation Studio", layout="wide")
 
 # --- MODEL LOADING (Singleton) ---
+
+
 @st.cache_resource
 def load_models():
     """Initialize models once and cache them."""
@@ -38,29 +40,34 @@ def load_models():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     pose_cfg = os.getenv("POSE_MODEL_CFG_PATH")
     pose_ckpt = os.getenv("POSE_MODEL_CKPT_PATH")
-    
+
     if not api_key:
         st.error("Missing GOOGLE_API_KEY in .env")
         return None, None
 
     print(f"🚀 Loading models on {device}...")
-    
+
     # Initialize components
     gen_model = NanoBananaGenerator(api_key)
     style_model = NanoBananaStyleTransfer(api_key)
-    pose_model = MMPoseEstimator(cfg_path=pose_cfg, ckpt_path=pose_ckpt, device=device)
-    
+    pose_model = MMPoseEstimator(
+        cfg_path=pose_cfg, ckpt_path=pose_ckpt, device=device)
+
+    decomposer_instance = ConcreteObjectDecomposer()
+
     # Initialize Pipeline
     pipeline = AnimationGenerationPipeline(
         style_transfer=style_model,
-        object_decomposer=ConcreteObjectDecomposer(),
+        object_decomposer=decomposer_instance,
         pose_estimator=pose_model,
         animator=MetaAnimator()
     )
-    
-    return pipeline, gen_model
+
+    return pipeline, gen_model, decomposer_instance
 
 # --- STATE MANAGEMENT ---
+
+
 def init_session_state():
     """Initialize global variables."""
     defaults = {
@@ -74,9 +81,11 @@ def init_session_state():
             st.session_state[key] = value
 
 # --- MAIN APP ---
+
+
 def main():
     init_session_state()
-    pipeline, image_generator = load_models()
+    pipeline, image_generator, object_decomposer = load_models()
 
     if not pipeline:
         st.stop()
@@ -84,11 +93,12 @@ def main():
     # Sidebar Navigation
     st.sidebar.title("🎥 AI Studio")
     options = ["1. Character", "2. Animation", "3. Background", "4. Export"]
-    
+
     # Sync sidebar with session state
     current_index = st.session_state.step - 1
-    selected_option = st.sidebar.radio("Workflow:", options, index=current_index)
-    
+    selected_option = st.sidebar.radio(
+        "Workflow:", options, index=current_index)
+
     # Update step based on selection
     st.session_state.step = int(selected_option.split(".")[0])
 
@@ -97,14 +107,15 @@ def main():
         step1.show(image_generator)
     elif st.session_state.step == 2:
         step2.show(pipeline)
-    # elif st.session_state.step == 3:
-    #     step3.show()
-    # elif st.session_state.step == 4:
-    #     step4.show()
+    elif st.session_state.step == 3:
+        step3.show(object_decomposer)
+    elif st.session_state.step == 4:
+        step4.show()
 
     # Footer
     st.markdown("---")
     st.caption(f"AI Animation Pipeline | Step {st.session_state.step}/4")
+
 
 if __name__ == "__main__":
     main()

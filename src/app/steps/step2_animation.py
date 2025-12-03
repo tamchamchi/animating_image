@@ -8,11 +8,11 @@ from src.pipeline.input_data import AnimationPipelineInput
 from src.utils.prompt import PROMPT_IMAGE_STYLE_TRANSFER
 
 def update_gallery(output_dir_path, container):
-    """Hàm helper để vẽ lại lưới ảnh GIF vào container."""
-    # Tìm tất cả file gif
+    """Helper function to redraw the GIF image grid into the container."""
+    # Find all gif files
     gifs = glob.glob(str(output_dir_path / "*.gif")) + glob.glob(str(output_dir_path / "**" / "*.gif"))
     
-    # Sắp xếp để file mới nhất hiện lên đầu
+    # Sort files so the newest ones appear first
     gifs.sort(key=os.path.getmtime, reverse=True) 
 
     if gifs:
@@ -22,7 +22,7 @@ def update_gallery(output_dir_path, container):
             cols = st.columns(3)
             for i, gif in enumerate(gifs):
                 file_name = os.path.basename(gif)
-                # Format tên cho đẹp
+                # Format filename for better display
                 action_name = file_name.replace(".gif", "").replace("_", " ").title()
                 
                 with cols[i % 3]:
@@ -41,12 +41,12 @@ def show(pipeline):
 
     col_conf, col_view = st.columns([1, 2])
 
-    # --- KHU VỰC CẤU HÌNH (Cột trái) ---
+    # --- CONFIGURATION AREA (Left Column) ---
     with col_conf:
         st.image(st.session_state.char_image, width=150, caption="Character Input")
         st.markdown("---")
 
-        # 1. Tùy chọn Style Transfer
+        # 1. Style Transfer Option
         st.subheader("Configuration")
         use_style_transfer = st.checkbox("🎨 Apply Style Transfer", value=False)
         
@@ -62,7 +62,7 @@ def show(pipeline):
             st.info("Using original character colors.")
             style_ref_image = st.session_state.char_image
 
-        # 2. Chọn hành động
+        # 2. Select Actions
         available_actions = ["standing", "jumping", "running", "jesse_dancing", "waving", "speaking"]
         selected_actions = st.multiselect(
             "Actions:", 
@@ -70,25 +70,29 @@ def show(pipeline):
             default=["waving"]
         )
 
-        # Tùy chọn ghi đè
-        force_regenerate = st.checkbox("Force Regenerate (Ghi đè file cũ)", value=False, help="Nếu chọn, hệ thống sẽ tạo lại GIF kể cả khi file đã tồn tại.")
+        # Overwrite Option
+        force_regenerate = st.checkbox("Force Regenerate (Overwrite old files)", value=False, help="If selected, the system will regenerate the GIF even if the file already exists.")
         
         st.markdown("---")
         
-        # 3. Nút chạy
+        # 3. Run Button
         run_btn = st.button("🎬 Run Pipeline", type="primary")
 
-    # --- KHU VỰC HIỂN THỊ (Cột phải) ---
+    # --- DISPLAY AREA (Right Column) ---
     with col_view:
         gallery_placeholder = st.empty()
         
-        # Xác định đường dẫn output trước để check file
+        # Define output path beforehand to check for files
         base_path = Path(os.getcwd()) / "src" / "configs" / "characters"
         output_dir = base_path / st.session_state.char_name
+
+        has_results = False
         
-        # Nếu đã có output từ lần trước, hiển thị ngay
+        # If output from previous run exists, display immediately
         if output_dir.exists():
             update_gallery(output_dir, gallery_placeholder)
+            if list(output_dir.glob("*.gif")) or list(output_dir.glob("**/*.gif")):
+                has_results = True
 
         if run_btn:
             # --- VALIDATION ---
@@ -109,21 +113,21 @@ def show(pipeline):
                 my_bar = st.progress(0, text=progress_text)
                 total_actions = len(selected_actions)
 
-                # --- VÒNG LẶP XỬ LÝ TỪNG ACTION ---
+                # --- LOOP PROCESSING EACH ACTION ---
                 for idx, action in enumerate(selected_actions):
                     
-                    # Cập nhật thanh tiến trình
+                    # Update progress bar
                     current_progress = int((idx / total_actions) * 100)
                     my_bar.progress(current_progress, text=f"Checking: {action} ({idx+1}/{total_actions})...")
                     
-                    # --- LOGIC SKIP (BỎ QUA) ---
-                    # Giả định pipeline lưu file dạng: {tên_nhân_vật}/{action}.gif
-                    # Bạn cần điều chỉnh tên file nếu pipeline lưu khác (ví dụ: {action}_output.gif)
+                    # --- SKIP LOGIC ---
+                    # Assume pipeline saves file as: {char_name}/{action}.gif
+                    # You need to adjust the filename if the pipeline saves differently (e.g., {action}_output.gif)
                     target_file = output_dir / f"{action}.gif"
                     
                     if target_file.exists() and not force_regenerate:
-                        # File đã tồn tại và không chọn Force -> Bỏ qua
-                        time.sleep(0.5) # Dừng một chút để user kịp đọc thông báo
+                        # File already exists and Force is not selected -> Skip
+                        time.sleep(0.5) # Pause briefly so the user can read the notification
                         st.toast(f"Skipped '{action}' - File already exists.", icon="⏭️")
                         continue 
 
@@ -141,21 +145,26 @@ def show(pipeline):
                     
                     pipeline.run(data, use_style_transfer=use_style_transfer)
                     
-                    # Update Gallery ngay sau khi tạo xong
+                    # Update Gallery immediately after generation
                     update_gallery(output_dir, gallery_placeholder)
                 
-                # Hoàn tất
+                # Finalize
                 my_bar.progress(100, text="All tasks finished!")
                 time.sleep(1)
                 my_bar.empty()
                 st.success("Process Completed!")
+
+                has_results = True 
                 
-                # Hiện nút Next Step
-                if st.button("Next Step ➡️", key="next_step_btn"):
-                    st.session_state.step = 3
-                    st.rerun()
+                # Show Next Step button
 
             except Exception as e:
                 st.error(f"Error during processing: {e}")
                 import traceback
                 st.code(traceback.format_exc())
+                
+        if has_results:
+            st.markdown("---")
+            if st.button("Next Step ➡️", key="btn_go_step3", type="primary"):
+                st.session_state.step = 3
+                st.rerun()
