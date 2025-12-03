@@ -13,8 +13,8 @@ from transformers import AutoProcessor, GroundingDinoForObjectDetection
 import torchvision
 
 # --- CẤU HÌNH MÔ HÌNH ---
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
+# DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cpu"
 GROUNDING_DINO_HF_MODEL = "IDEA-Research/grounding-dino-tiny"
 SAM_CHECKPOINT_PATH = "/mnt/mmlab2024nas/anhndt/sam_vit_h_4b8939.pth" 
 SAM_MODEL_TYPE = "vit_h"
@@ -71,6 +71,15 @@ class GroundedSamIntegrator:
         return boxes_xyxy, scores
 
     @torch.no_grad()
+    def get_mask_from_box(self, box: np.ndarray) -> np.ndarray:
+        """Tạo mask từ 1 bbox"""
+        masks, _, _ = self.sam_predictor.predict(
+            point_coords=None, point_labels=None,
+            box=box[None, :], multimask_output=False
+        )
+        return masks[0].astype(np.uint8) * 255
+    
+    @torch.no_grad()
     def get_best_mask(self, image: np.ndarray, prompt: str) -> Optional[np.ndarray]:
         """Tìm BBox và tạo mask bằng SAM (Logic cũ)."""
         self.sam_predictor.set_image(image)
@@ -124,89 +133,86 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
             "mask_image_viz": mask_image_viz
         }
 
+    def convert_mask_to_polygon(self, mask, approx_factor=0.005):
+        """Helper chuyển đổi Mask -> Polygon"""
+        if mask is None: return []
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours: return []
+        cnt = max(contours, key=cv2.contourArea)
+        peri = cv2.arcLength(cnt, True)
+        approx = cv2.approxPolyDP(cnt, approx_factor * peri, True)
+        return approx.reshape(-1, 2).tolist()
+
     def detect_objects(self, image: np.ndarray, prompts: List[str], threshold: float = 0.20) -> List[Dict]:
         """
-        Args:
-            threshold (float): Ngưỡng tin cậy. Tăng lên 0.40-0.45 để lọc bớt rác.
+        Input: Ảnh + Prompt
+        Output: List Dict chứa {name, bbox, score, polygon}
         """
+        if DEVICE == "cuda": torch.cuda.empty_cache()
+
+        # 1. Setup ảnh cho SAM (Làm 1 lần duy nhất cho toàn bộ prompt)
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image_pil = Image.fromarray(image_rgb)
+        self.sam_integrator.sam_predictor.set_image(image_rgb)
         
         results = []
 
-        # GroundingDINO cho phép dùng dấu . để ngăn cách các từ đồng nghĩa trong 1 lần chạy
-        # Nhưng để dễ kiểm soát tên output, ta vẫn loop qua từng prompt
-        
         for prompt_text in prompts:
-            # Lưu ý: Cần truyền threshold vào hàm predict_boxes nếu bạn muốn chỉnh sâu bên trong,
-            # nhưng ở đây ta lọc output cũng được.
-            
-            # Gọi hàm dự đoán (mặc định threshold trong model config là 0.35, ta sẽ lọc lại ở dưới)
+            # 2. Detect BBox (GroundingDINO)
             boxes, scores = self.sam_integrator.predict_boxes(image_pil, prompt_text)
-            
-            if len(boxes) == 0:
-                continue
+            if len(boxes) == 0: continue
 
-            # --- LỌC NGƯỠNG (THRESHOLD FILTERING) ---
-            # Chỉ lấy những box có score >= threshold truyền vào (VD: 0.40)
+            # 3. Lọc ngưỡng (Threshold)
             keep_indices = scores >= threshold
             boxes = boxes[keep_indices]
             scores = scores[keep_indices]
-            
             if len(boxes) == 0: continue
-
-            # --- NMS (Non-Maximum Suppression) ---
+            
+            # 4. Lọc trùng lặp nội bộ (NMS per class)
             boxes_tensor = torch.tensor(boxes, dtype=torch.float32)
             scores_tensor = torch.tensor(scores, dtype=torch.float32)
-            
-            # iou_threshold=0.5: Giữ lại box tốt nhất nếu trùng nhau
             nms_indices = torchvision.ops.nms(boxes_tensor, scores_tensor, iou_threshold=0.5)
             
             final_boxes = boxes[nms_indices.numpy()]
             final_scores = scores[nms_indices.numpy()]
 
+            # 5. Duyệt qua các box đã lọc để tạo Mask & Polygon
             for box, score in zip(final_boxes, final_scores):
+                # Tạo Mask bằng SAM
+                mask = self.sam_integrator.get_mask_from_box(box)
+                
+                # Tạo Polygon
+                polygon = self.convert_mask_to_polygon(mask, approx_factor=0.005)
+
                 item = {
-                    "name": prompt_text, # Tên trả về
+                    "name": prompt_text,
+                    "score": float(f"{score:.4f}"),
                     "bbox": box.tolist(),
-                    "score": float(score)
+                    "polygon": polygon
                 }
                 results.append(item)
-
+                
         return results
-    
-    def generate_masks_from_boxes(self, image: np.ndarray, detections: List[Dict]) -> List[Dict]:
-        """
-        Input: Ảnh gốc và danh sách kết quả chứa bbox.
-        Output: Danh sách kết quả đã được bổ sung thêm trường 'mask'.
-        """
-        if not detections:
-            return []
 
-        # 1. Setup ảnh cho SAM (Chỉ cần làm 1 lần cho cả bức ảnh)
-        # SAM yêu cầu ảnh RGB
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        self.sam_integrator.sam_predictor.set_image(image_rgb)
-
-        # 2. Duyệt qua từng bbox để tạo mask
+    def draw_visual_result(self, image, detections):
+        """Hàm vẽ visualize"""
+        vis_img = image.copy()
         for det in detections:
-            bbox = det['bbox'] # [x1, y1, x2, y2]
+            bbox = det['bbox']
+            name = det['name']
+            score = det['score']
+            polygon = det.get('polygon', [])
             
-            # Chuyển bbox thành numpy array đúng format SAM yêu cầu
-            box_np = np.array(bbox)
+            color = (0, 255, 255) if "ac_" in name else (0, 255, 0)
+            
+            if polygon:
+                pts = np.array(polygon, np.int32).reshape((-1, 1, 2))
+                cv2.polylines(vis_img, [pts], True, color, 2)
+                for point in polygon:
+                    cv2.circle(vis_img, tuple(point), 3, (0, 0, 255), -1)
 
-            # SAM predict: Dùng box làm gợi ý
-            masks, _, _ = self.sam_integrator.sam_predictor.predict(
-                point_coords=None,
-                point_labels=None,
-                box=box_np[None, :], # Format [1, 4]
-                multimask_output=False # Chỉ lấy 1 mask tốt nhất
-            )
-            
-            # masks trả về shape [1, H, W], ta lấy [H, W]
-            mask_binary = masks[0].astype(np.uint8) # 0 và 1
-            
-            # Lưu mask vào dictionary kết quả
-            det['mask'] = mask_binary
-
-        return detections
+            x_min, y_min, x_max, y_max = bbox
+            cv2.rectangle(vis_img, (x_min, y_min), (x_max, y_max), color, 1)
+            cv2.putText(vis_img, f"{name} ({score:.2f})", (x_min, y_min - 5), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+        return vis_img

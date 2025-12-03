@@ -1,7 +1,7 @@
 [
   {
     "name": "notice_board",
-    "score": 0.5801,
+    "score": 0.5805,
     "bbox": [641, 560, 985, 946],
     "polygon": [
       [681, 572],
@@ -12,7 +12,7 @@
   },
   {
     "name": "ac_controller",
-    "score": 0.4271,
+    "score": 0.4276,
     "bbox": [1743, 1049, 1948, 1233],
     "polygon": [
       [1747, 1058],
@@ -27,7 +27,7 @@
   },
   {
     "name": "ac_controller",
-    "score": 0.368,
+    "score": 0.3655,
     "bbox": [1493, 1101, 1718, 1232],
     "polygon": [
       [1507, 1120],
@@ -44,7 +44,7 @@
   },
   {
     "name": "ac_controller",
-    "score": 0.3331,
+    "score": 0.3332,
     "bbox": [2407, 930, 2551, 1121],
     "polygon": [
       [2493, 937],
@@ -69,7 +69,7 @@
   },
   {
     "name": "ac_controller",
-    "score": 0.2523,
+    "score": 0.252,
     "bbox": [1281, 937, 1750, 1092],
     "polygon": [
       [1293, 963],
@@ -83,7 +83,7 @@
   },
   {
     "name": "ac_controller",
-    "score": 0.2052,
+    "score": 0.2057,
     "bbox": [1284, 941, 1406, 1057],
     "polygon": [
       [1296, 955],
