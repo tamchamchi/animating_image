@@ -21,7 +21,8 @@ Do not include characters, obstacles, or UI.
 Produce a wide panoramic image suitable for parallax scrolling in a 2D game."""
 
 PROMPT_SUBJECT_GENERATION = """
-{subject} with both feet pointing to the right, drawn in the style of a colored pencil sketch on white paper. 
+{subject} with both feet pointing to the right, with both arms extended to the sides,
+drawn in the style of a colored pencil sketch on white paper. 
 Use a naive, childlike art style with visible pencil stroke textures. 
 Simple facial features (dot eyes), cute proportions, and a hand-drawn, 
 grainy aesthetic. Isolated on white background."""

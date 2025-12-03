@@ -48,7 +48,7 @@ class AnimationGenerationPipeline:
         x1, y1, x2, y2 = bbox
         return (max(0, x1 - pad), max(0, y1 - pad), x2 + pad, y2 + pad)
 
-    def run(self, input_data: AnimationPipelineInput):
+    def run(self, input_data: AnimationPipelineInput, use_style_transfer: bool = True):
         """
         Execute the pipeline steps if their components exist.
 
@@ -75,7 +75,7 @@ class AnimationGenerationPipeline:
         # ------------------------------------------------------------
         # Step 1: Style Transfer
         # ------------------------------------------------------------
-        if self.style_transfer:
+        if self.style_transfer and use_style_transfer:
             print(">>> [Pipeline] Running Style Transfer...")
             object_stylized = self.style_transfer.transfer(
                 style_ref=data["style_ref"],
