@@ -107,7 +107,7 @@ class Game:
         Parses level data from JSON and creates platform objects.
 
         Args:
-            data_path (str): Path to the folder containing 'level_data.json'.
+            data_path (str): Path to the folder containing 'detected_objects.json'.
         """
         # A. Create the Ground Floor
         # This is a fixed platform based on the original image height.
@@ -122,7 +122,7 @@ class Game:
         )
 
         # B. Load Dynamic Platforms from JSON
-        json_path = os.path.join(data_path, "level_data.json")
+        json_path = os.path.join(data_path, "detected_objects.json")
         try:
             with open(json_path, "r") as f:
                 detected_objects = json.load(f)
