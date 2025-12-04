@@ -20,12 +20,13 @@ from src.image_style_transfer.nano_banana_style_transfer import NanoBananaStyleT
 from src.pipeline.animation_pipeline import AnimationGenerationPipeline  # noqa: E402
 from src.pose_estimator.mmpose_estimator import MMPoseEstimator  # noqa: E402
 from src.text_to_image import NanoBananaGenerator  # noqa: E402
+from src.face_segmenter import SegFormerB5FaceSegmenter  # noqa: E402
 
 # Import Step Routers
 import steps.step1_character as step1  # noqa: E402
 import steps.step2_animation as step2  # noqa: E402
-import steps.step3_background as step3 # noqa: E402
-import steps.step4_render as step4 # noqa: E402
+import steps.step3_background as step3  # noqa: E402
+import steps.step4_render as step4  # noqa: E402
 
 load_dotenv()
 st.set_page_config(page_title="AI Animation Studio", layout="wide")
@@ -55,6 +56,8 @@ def load_models():
 
     decomposer_instance = ConcreteObjectDecomposer()
 
+    face_segmenter = SegFormerB5FaceSegmenter(device=device)
+
     # Initialize Pipeline
     pipeline = AnimationGenerationPipeline(
         style_transfer=style_model,
@@ -63,7 +66,7 @@ def load_models():
         animator=MetaAnimator()
     )
 
-    return pipeline, gen_model, decomposer_instance
+    return pipeline, gen_model, decomposer_instance, face_segmenter
 
 # --- STATE MANAGEMENT ---
 
@@ -85,7 +88,7 @@ def init_session_state():
 
 def main():
     init_session_state()
-    pipeline, image_generator, object_decomposer = load_models()
+    pipeline, image_generator, object_decomposer, face_segmenter = load_models()
 
     if not pipeline:
         st.stop()
@@ -104,7 +107,7 @@ def main():
 
     # --- ROUTER LOGIC ---
     if st.session_state.step == 1:
-        step1.show(image_generator)
+        step1.show(image_generator, face_segmenter)
     elif st.session_state.step == 2:
         step2.show(pipeline)
     elif st.session_state.step == 3:
