@@ -121,8 +121,8 @@ def show(object_decomposer):
                     st.success(f"Saved results to: {base_path}")
 
                     # Display JSON on screen
-                    st.markdown("### Detected JSON Data")
-                    st.json(final_output)
+                    # st.markdown("### Detected JSON Data")
+                    # st.json(final_output)
                 else:
                     st.warning(
                         "No objects detected with current prompts/threshold.")
