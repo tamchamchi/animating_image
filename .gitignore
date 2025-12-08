@@ -14,8 +14,18 @@ venv/
 .vscode/
 .idea/
 
+# Images
+images/
+
 # Other temporary files
 *.log
 *.tmp
 *.pth
+*.pt
 .DS_Store
+
+# External libraries or assets
+external/
+
+# Character configs
+*/configs/characters/
