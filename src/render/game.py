@@ -8,7 +8,7 @@ import pygame
 from .config import CFG, PLAYER_START_X, PLAYER_START_Y, SCREEN_H, SCREEN_W
 from .platform import Platform
 from .player import Player
-from .utils import load_gif_frames
+from .utils import load_gif_frames, create_spotlight_mask
 
 
 class Game:
@@ -24,8 +24,7 @@ class Game:
         Initialize the Game engine.
 
         Args:
-            data_path (str): The directory path containing game assets
-                             (gifs, background.jpg, level_data.json).
+            data_path (str): The directory path containing game assets.
         """
         # 1. Init Pygame
         pygame.init()
@@ -39,12 +38,9 @@ class Game:
         self.player_speed = CFG["physics"]["player_speed"]
 
         # 3. Load Assets & Dynamic Dimensions
-        # Note: This step must happen before level setup to determine
-        # the original background dimensions (original_w, original_h).
         self.load_assets(data_path)
 
         # 4. Setup Level (Platforms)
-        # Initializes the sprite group for platforms based on the loaded dimensions.
         self.platforms = pygame.sprite.Group()
         self.setup_level(data_path)
 
@@ -54,26 +50,30 @@ class Game:
         self.player = Player(start_x, start_y, self.animations)
         self.start_pos = (start_x, start_y)
 
+        # 6. Setup Spotlight / Lighting Effect
+        self.spotlight_radius = CFG["lighting"]["radius"]
+        self.darkness_opacity = CFG["lighting"]["opacity"]
+
+        # Create the darkness layer (covers the whole screen)
+        self.darkness_layer = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+
+        # Generate the light texture once (performance optimization)
+        self.spotlight_img = create_spotlight_mask(
+            self.spotlight_radius, self.darkness_opacity
+        )
+
     def load_assets(self, data_path):
         """
         Loads game assets from the specified directory.
-
-        It loads the background image first to establish the coordinate system
-        scale, then loads character animations.
         """
-        # --- A. PROCESS BACKGROUND & ORIGINAL DIMENSIONS ---
+        # --- A. PROCESS BACKGROUND ---
         bg_path = os.path.join(data_path, "background.jpg")
 
         if os.path.exists(bg_path):
-            # Load the raw image to get the actual source dimensions
             raw_bg = pygame.image.load(bg_path)
             w, h = raw_bg.get_size()
-
-            # Store original dimensions for coordinate scaling later
             self.original_w = w
             self.original_h = h
-
-            # Scale the background to fit the current screen configuration
             self.bg_img = pygame.transform.scale(raw_bg, (SCREEN_W, SCREEN_H))
             print(f"Loaded Background: {w}x{h} -> Scaled to System Config")
         else:
@@ -82,8 +82,6 @@ class Game:
 
         # --- B. LOAD ANIMATIONS ---
         asset_scale = tuple(CFG["assets"]["scale"])
-
-        # Load GIF frames for different player states
         self.animations = {
             "idle": load_gif_frames(
                 os.path.join(data_path, "waving.gif"), 1, asset_scale
@@ -105,12 +103,8 @@ class Game:
     def setup_level(self, data_path):
         """
         Parses level data from JSON and creates platform objects.
-
-        Args:
-            data_path (str): Path to the folder containing 'detected_objects.json'.
         """
         # A. Create the Ground Floor
-        # This is a fixed platform based on the original image height.
         ground_poly = [
             [0, self.original_h],
             [0, self.original_h - 50],
@@ -128,7 +122,6 @@ class Game:
                 detected_objects = json.load(f)
 
             for obj in detected_objects:
-                # Ensure the polygon has at least 3 points to be valid
                 if len(obj.get("polygon", [])) >= 3:
                     p = Platform(
                         obj["polygon"],
@@ -137,82 +130,79 @@ class Game:
                         self.original_h,
                     )
                     self.platforms.add(p)
-
         except FileNotFoundError:
             print(f"Warning: {json_path} not found. Only ground platform loaded.")
 
     def handle_events(self):
-        """
-        Processes external events such as keyboard input and window close requests.
-        """
+        """Processes external events."""
         for event in pygame.event.get():
-            # Handle Window Close
             if event.type == pygame.QUIT:
                 self.running = False
-
-            # Handle Key Presses
             if event.type == pygame.KEYDOWN:
-                # Jump actions
                 if event.key in [pygame.K_UP, pygame.K_SPACE]:
                     self.player.jump()
-
-                # Reset player position
                 if event.key == pygame.K_r:
                     self.player.reset_position(*self.start_pos)
 
     def update(self):
-        """
-        Updates the game state for the current frame.
-        """
+        """Updates the game state for the current frame."""
         keys = pygame.key.get_pressed()
         dx = 0
 
-        # Horizontal movement input
         if keys[pygame.K_RIGHT]:
             dx = self.player_speed
         if keys[pygame.K_LEFT]:
             dx = -self.player_speed
 
-        # Action states
         is_dancing = keys[pygame.K_d]
         is_speaking = keys[pygame.K_s]
 
-        # Priority Logic: Dancing prevents movement
         if is_dancing:
             dx = 0
 
-        # Update player physics and animation
         self.player.update(dx, is_dancing, is_speaking, self.platforms)
 
     def draw(self):
         """
-        Renders all game objects to the screen.
-        Order: Background -> Platforms -> Player.
+        Renders all game objects and applies the spotlight effect.
+        Order: Background -> Platforms -> Player -> Spotlight -> UI.
         """
-        # Draw background
+        # 1. Draw the base game world
         self.screen.blit(self.bg_img, (0, 0))
-
-        # Draw all platforms in the group
         for p in self.platforms:
             p.draw(self.screen)
-
-        # Draw the player
         self.player.draw(self.screen)
 
-        # Flip the display buffer
+        # --- 2. APPLY SPOTLIGHT EFFECT (Fog of War) ---
+
+        # A. Fill the darkness layer with black (semi-transparent based on opacity)
+        self.darkness_layer.fill((0, 0, 0, self.darkness_opacity))
+
+        # B. Calculate where to place the spotlight
+        # Center it on the player's position
+        light_x = self.player.rect.centerx - self.spotlight_radius
+        light_y = self.player.rect.centery - self.spotlight_radius
+
+        # C. "Cut out" the light hole
+        # BLEND_RGBA_SUB subtracts the alpha of the source (spotlight) from the destination (darkness)
+        # Center of spotlight has High Alpha -> Subtracts from Darkness -> Result is Transparent
+        self.darkness_layer.blit(
+            self.spotlight_img, (light_x, light_y), special_flags=pygame.BLEND_RGBA_SUB
+        )
+
+        # D. Blit the final darkness layer onto the screen
+        self.screen.blit(self.darkness_layer, (0, 0))
+
+        # 3. Flip display
         pygame.display.update()
 
     def run(self):
-        """
-        The main game loop. Runs until self.running is False.
-        """
+        """The main game loop."""
         while self.running:
             self.handle_events()
             self.update()
             self.draw()
-            # Maintain the target FPS
             self.clock.tick(self.fps)
 
-        # Cleanup and exit
         pygame.quit()
         sys.exit()

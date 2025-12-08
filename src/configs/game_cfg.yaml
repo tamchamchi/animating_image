@@ -37,6 +37,11 @@ platform_style:
   border_width: 2              # Thickness of the visible border line
   mask_color: [255, 0, 0, 255] # Color used for collision mask generation (invisible to player)
 
+# --- Lighting Effects (Spotlight/Fog of War) ---
+lighting:
+  radius: 100
+  opacity: 150 
+
 # --- Asset Management ---
 assets:
   scale: [256, 256]            # Target dimensions [width, height] for asset resizing
