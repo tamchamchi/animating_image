@@ -2,13 +2,15 @@
 Game Configuration Module.
 
 This script is responsible for loading game settings from an external YAML file
-('game_cfg.yaml') and defining global constants used throughout the game, 
+('game_cfg.yaml') and defining global constants used throughout the game,
 such as screen dimensions, physics parameters, styling, and player initialization.
 """
 
-import yaml
-import sys
 import os
+import sys
+
+import pygame
+import yaml
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,67 +28,94 @@ except FileNotFoundError:
 
 # --- SCREEN SETTINGS ---
 # Define the dimensions of the game window.
-SCREEN_W = CFG['screen']['width']
-SCREEN_H = CFG['screen']['height']
-SCALE = CFG['screen'].get('scale', 1.0)
+SCREEN_W = CFG["screen"]["width"]
+SCREEN_H = CFG["screen"]["height"]
+SCALE = CFG["screen"].get("scale", 1.0)
 
 # --- PHYSICS & ENVIRONMENT ---
 # Define the Y-coordinate representing the ground floor.
 GROUND_LEVEL = SCREEN_H - 20
 
 # The margin of error (in pixels) for collision detection calculation.
-COLLISION_TOLERANCE = CFG['physics'].get('collision_tolerance', 5)
+COLLISION_TOLERANCE = CFG["physics"].get("collision_tolerance", 5)
 
 # Dictionary defining the playback speed for various animation states.
-ANIMATION_SPEEDS = CFG.get('animation_speeds', {
-    "idle": 0.2, "run": 0.3, "jump": 0.3, "dance": 0.2, "speak": 0.2
-})
+ANIMATION_SPEEDS = CFG.get(
+    "animation_speeds",
+    {"idle": 0.2, "run": 0.3, "jump": 0.3, "dance": 0.2, "speak": 0.2},
+)
 
 # --- PLATFORM CONSTANTS ---
 # Extract platform styling configurations.
-PLAT_STYLE = CFG.get('platform_style', {})
+PLAT_STYLE = CFG.get("platform_style", {})
 
 # Padding for the surface to ensure borders are not clipped during rendering.
-PLATFORM_PADDING = PLAT_STYLE.get('padding', 2)
+PLATFORM_PADDING = PLAT_STYLE.get("padding", 2)
 
 # Visual Settings: Border color (RGBA) and thickness.
 # Default to a semi-transparent white if not specified.
-PLATFORM_BORDER_COLOR = tuple(PLAT_STYLE.get(
-    'border_color', [255, 255, 255, 80]))
-PLATFORM_BORDER_WIDTH = PLAT_STYLE.get('border_width', 2)
+PLATFORM_BORDER_COLOR = tuple(PLAT_STYLE.get("border_color", [255, 255, 255, 80]))
+PLATFORM_BORDER_WIDTH = PLAT_STYLE.get("border_width", 2)
 
 # Mask Settings: Color used specifically for creating the collision mask.
 # This color is typically not rendered but used for logic.
-PLATFORM_MASK_COLOR = tuple(PLAT_STYLE.get('mask_color', [255, 0, 0, 255]))
+PLATFORM_MASK_COLOR = tuple(PLAT_STYLE.get("mask_color", [255, 0, 0, 255]))
 
 # --- PLAYER INITIALIZATION SETTINGS ---
-PLAYER_CFG = CFG.get('player', {})
+PLAYER_CFG = CFG.get("player", {})
 
 # Starting X coordinate for the player.
 # Defaults to 400 if the key is missing in the YAML config.
-PLAYER_START_X = PLAYER_CFG.get('start_x', 400)
+PLAYER_START_X = PLAYER_CFG.get("start_x", 400)
 
 # Starting Y coordinate for the player.
-PLAYER_START_Y = PLAYER_CFG.get('start_y', 300)
+PLAYER_START_Y = PLAYER_CFG.get("start_y", 300)
 
 
 def update_screen_settings(bg_w, bg_h):
     """
-    This function is called right after loading the background image.
-    It recalculates all screen-related settings based on the background size.
+    Automatically adjusts SCREEN_W and SCREEN_H so that the scaled background
+    always fits within the current display screen.
+    SCALE will be reduced gradually until the size fits.
 
     Args:
-        bg_w (int): Width of the background image.
-        bg_h (int): Height of the background image.
+        bg_w (int): original background width
+        bg_h (int): original background height
     """
-    global SCREEN_W, SCREEN_H, GROUND_LEVEL
+    global SCREEN_W, SCREEN_H, GROUND_LEVEL, SCALE
 
-    # Compute the new screen resolution based on the global scale factor
-    SCREEN_W = int(bg_w * SCALE)
-    SCREEN_H = int(bg_h * SCALE)
+    # Get actual monitor resolution
+    pygame.display.init()
+    display_info = pygame.display.Info()
+    max_w, max_h = display_info.current_w, display_info.current_h
 
-    # Update values that depend on the screen height (e.g., ground position)
+    print(f"[SYSTEM] Laptop screen = {max_w} x {max_h}")
+
+    # Start from current SCALE and reduce if needed
+    original_scale = SCALE
+
+    while True:
+        SCREEN_W = int(bg_w * SCALE)
+        SCREEN_H = int(bg_h * SCALE)
+
+        # If fits inside the monitor, break
+        if SCREEN_W <= max_w and SCREEN_H <= max_h:
+            break
+
+        # Otherwise reduce scale
+        SCALE *= 0.95  # reduce 5% each loop
+
+        # Avoid infinite shrinking
+        if SCALE < 0.2:
+            SCALE = 0.2
+            SCREEN_W = int(bg_w * SCALE)
+            SCREEN_H = int(bg_h * SCALE)
+            break
+
+    # Update ground level
     GROUND_LEVEL = SCREEN_H - 20
 
     print(
-        f"Config Updated: BG({bg_w}x{bg_h}) -> Screen({SCREEN_W}x{SCREEN_H}) with Scale {SCALE}")
+        f"[UPDATED] BG({bg_w}x{bg_h}) -> Screen({SCREEN_W}x{SCREEN_H}) | "
+        f"Scale: {original_scale:.3f} → {SCALE:.3f}"
+    )

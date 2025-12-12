@@ -6,7 +6,7 @@
 screen:
   width: 1280
   height: 960
-  scale: 0.3
+  scale: 0.8
   fps: 60                      # Target Frames Per Second
   caption: "Lab Platformer"    # Window title text
 
@@ -41,7 +41,7 @@ platform_style:
 # --- Lighting Effects (Spotlight/Fog of War) ---
 lighting:
   radius: 90
-  opacity: 100 
+  opacity: 255 
 
 # --- Asset Management ---
 assets:
