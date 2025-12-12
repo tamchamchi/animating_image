@@ -28,6 +28,7 @@ except FileNotFoundError:
 # Define the dimensions of the game window.
 SCREEN_W = CFG['screen']['width']
 SCREEN_H = CFG['screen']['height']
+SCALE = CFG['screen'].get('scale', 1.0)
 
 # --- PHYSICS & ENVIRONMENT ---
 # Define the Y-coordinate representing the ground floor.
@@ -67,3 +68,25 @@ PLAYER_START_X = PLAYER_CFG.get('start_x', 400)
 
 # Starting Y coordinate for the player.
 PLAYER_START_Y = PLAYER_CFG.get('start_y', 300)
+
+
+def update_screen_settings(bg_w, bg_h):
+    """
+    This function is called right after loading the background image.
+    It recalculates all screen-related settings based on the background size.
+
+    Args:
+        bg_w (int): Width of the background image.
+        bg_h (int): Height of the background image.
+    """
+    global SCREEN_W, SCREEN_H, GROUND_LEVEL
+
+    # Compute the new screen resolution based on the global scale factor
+    SCREEN_W = int(bg_w * SCALE)
+    SCREEN_H = int(bg_h * SCALE)
+
+    # Update values that depend on the screen height (e.g., ground position)
+    GROUND_LEVEL = SCREEN_H - 20
+
+    print(
+        f"Config Updated: BG({bg_w}x{bg_h}) -> Screen({SCREEN_W}x{SCREEN_H}) with Scale {SCALE}")

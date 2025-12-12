@@ -6,6 +6,7 @@
 screen:
   width: 1280
   height: 960
+  scale: 0.3
   fps: 60                      # Target Frames Per Second
   caption: "Lab Platformer"    # Window title text
 
@@ -33,15 +34,15 @@ player:
 # --- Platform Visuals & Logic ---
 platform_style:
   padding: 2                   # Padding to prevent the border from being clipped
-  border_color: [255, 255, 255, 1]  # Border color in RGBA (Red, Green, Blue, Alpha)
+  border_color: [255, 255, 255, 10]  # Border color in RGBA (Red, Green, Blue, Alpha)
   border_width: 2              # Thickness of the visible border line
   mask_color: [255, 0, 0, 255] # Color used for collision mask generation (invisible to player)
 
 # --- Lighting Effects (Spotlight/Fog of War) ---
 lighting:
-  radius: 150
-  opacity: 254 
+  radius: 90
+  opacity: 100 
 
 # --- Asset Management ---
 assets:
-  scale: [256, 256]            # Target dimensions [width, height] for asset resizing
+  scale: [128, 128]            # Target dimensions [width, height] for asset resizing
