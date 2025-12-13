@@ -55,7 +55,7 @@ def load_models():
     pose_model = MMPoseEstimator(
         cfg_path=pose_cfg, ckpt_path=pose_ckpt, device=device)
 
-    decomposer_instance = ConcreteObjectDecomposer()
+    decomposer_instance = ConcreteObjectDecomposer(device=device)
 
     face_segmenter = SegFormerB5FaceSegmenter(device=device)
 

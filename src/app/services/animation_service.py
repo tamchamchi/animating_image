@@ -44,10 +44,9 @@ class AnimationService:
         if not result:
             raise HTTPException(400, "Decomposition failed (No mask found)")
 
-        # Lưu Mask và Texture (Image BGRA)
-        # Class decomposer trả về 'mask' (numpy) và 'image' (bgra)
-        cv2.imwrite(os.path.join(work_dir, "mask.png"), result["mask"])
-        cv2.imwrite(os.path.join(work_dir, "texture.png"), result["image"])
+        # Lưu Mask và Texture
+        cv2.imwrite(os.path.join(work_dir, "mask.png"), cv2.cvtColor(result["mask"], cv2.COLOR_RGB2BGR))
+        cv2.imwrite(os.path.join(work_dir, "texture.png"), cv2.cvtColor(result["texture"], cv2.COLOR_RGB2BGR))
 
         return {
             "mask_url": f"{self.base_url}/{anim_id}/mask.png",

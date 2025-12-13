@@ -2,7 +2,6 @@ import os
 import uuid
 
 import cv2
-import numpy as np
 from fastapi.concurrency import run_in_threadpool
 
 from src.app.core.config import settings
@@ -21,19 +20,14 @@ class CharacterService:
         os.makedirs(path, exist_ok=True)
         return char_id, path
 
-    async def create_from_face(self, file):
+    async def create_from_face(self, file, body_file):
         char_id, work_dir = self._get_workspace()
 
         # 1. Read input image
         input_img = await read_image_as_numpy(file)  # BGR
 
         # 2. Load body cartoon template (Cần chuẩn bị sẵn file này)
-        body_path = os.path.join(settings.ASSETS_DIR, "default_body.png")
-        if not os.path.exists(body_path):
-            # Tạo ảnh giả nếu chưa có assets
-            body_img = np.zeros((800, 600, 3), dtype=np.uint8) + 255
-        else:
-            body_img = cv2.imread(body_path)
+        body_img = await read_image_as_numpy(body_file)
 
         # 3. AI Processing (Threadpool + Semaphore)
         async with ai_container.semaphore:
@@ -61,7 +55,9 @@ class CharacterService:
         face_url = None
 
         if face_region is not None and face_region.size > 0:
-            cv2.imwrite(os.path.join(work_dir, face_filename), face_region)
+            face_rgba = cv2.cvtColor(face_region, cv2.COLOR_BGR2BGRA)
+            face_rgba[:, :, 3] = face_mask
+            cv2.imwrite(os.path.join(work_dir, face_filename), face_rgba)
             face_url = f"{self.base_url}/{char_id}/{face_filename}"
 
         return {

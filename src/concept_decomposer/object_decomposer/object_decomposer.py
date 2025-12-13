@@ -126,6 +126,18 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
         self.sam_integrator = GroundedSamIntegrator(self.device)
         self.HARDCODED_PROMPT = "person . character . drawing . figure"
 
+    def _expand_bbox(self, bbox, pad=2):
+        """
+        Expand a bounding box by a given pixel padding.
+        Args:
+            bbox: (x1, y1, x2, y2)
+            pad: number of pixels to extend on each side
+        Returns:
+            Expanded bounding box tuple
+        """
+        x1, y1, x2, y2 = bbox
+        return (max(0, x1 - pad), max(0, y1 - pad), x2 + pad, y2 + pad)
+
     def decompose(self, image: np.ndarray) -> Optional[Dict]:
         """Triển khai hàm decompose cũ."""
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -143,12 +155,17 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
         bbox = compute_bbox_from_mask(mask)
         if bbox is None:
             bbox = (0, 0, W, H)
+        
+        x1, y1, x2, y2 = self._expand_bbox(bbox, pad=4)
+        mask_crop = mask_image_viz[y1:y2, x1:x2]
+        image_crop = image_rgb[y1:y2, x1:x2]
 
         return {
             "image": image_bgra,
-            "mask": mask,
+            "mask": mask_crop,
             "bounding_box": bbox,
             "mask_image_viz": mask_image_viz,
+            "texture": image_crop
         }
 
     def convert_mask_to_polygon(self, mask, approx_factor=0.005):

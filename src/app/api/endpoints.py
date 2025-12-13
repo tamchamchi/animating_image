@@ -10,9 +10,11 @@ anim_service = AnimationService()
 
 # --- 1. Create Character ---
 @router.post("/character/create-by-face")
-async def create_char_face(file: UploadFile = File(...)):
-    return await char_service.create_from_face(file)
-
+async def create_char_face(
+    face_image: UploadFile = File(...),
+    body_image: UploadFile = File(...)
+):
+    return await char_service.create_from_face(face_image, body_image)
 
 @router.post("/character/create-by-prompt")
 async def create_char_prompt(prompt: str = Form(...)):
