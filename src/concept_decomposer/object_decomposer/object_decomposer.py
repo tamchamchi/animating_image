@@ -23,21 +23,22 @@ BOX_THRESHOLD = 0.2
 class GroundedSamIntegrator:
     """Tích hợp Grounding DINO (HF) và SAM."""
 
-    def __init__(self):
-        print(f"Loading models on device: {DEVICE}...")
+    def __init__(self, device = DEVICE):
+        self.device = device
+        print(f"Loading models on device: {self.device}...")
         try:
             self.gd_processor = AutoProcessor.from_pretrained(
                 GROUNDING_DINO_HF_MODEL)
             self.gd_model = GroundingDinoForObjectDetection.from_pretrained(
                 GROUNDING_DINO_HF_MODEL
-            ).to(DEVICE)
+            ).to(self.device)
         except Exception as e:
             print(f"LỖI TẢI GROUNDING DINO: {e}")
             raise
         try:
             self.sam = sam_model_registry[SAM_MODEL_TYPE](
                 checkpoint=SAM_CHECKPOINT_PATH
-            ).to(device=DEVICE)
+            ).to(device=self.device)
             self.sam_predictor = SamPredictor(self.sam)
         except FileNotFoundError:
             print(f"LỖI: Không tìm thấy file SAM tại {SAM_CHECKPOINT_PATH}.")
@@ -58,14 +59,14 @@ class GroundedSamIntegrator:
         # 1. Tạo inputs (bao gồm cả input_ids)
         inputs = self.gd_processor(
             images=image_pil, text=text_prompt_formatted, return_tensors="pt"
-        ).to(DEVICE)
+        ).to(self.device)
 
         # 2. Chạy model
         outputs = self.gd_model(**inputs)
 
         # 3. Xử lý kết quả (cần truyền thêm input_ids từ bước 1)
         target_sizes = torch.tensor(
-            [image_pil.size[::-1]]).to(DEVICE)  # (H, W)
+            [image_pil.size[::-1]]).to(self.device)  # (H, W)
 
         results = self.gd_processor.post_process_grounded_object_detection(
             outputs,
@@ -120,8 +121,9 @@ class GroundedSamIntegrator:
 
 
 class ConcreteObjectDecomposer(IObjectDecomposer):
-    def __init__(self):
-        self.sam_integrator = GroundedSamIntegrator()
+    def __init__(self, device):
+        self.device = device
+        self.sam_integrator = GroundedSamIntegrator(self.device)
         self.HARDCODED_PROMPT = "person . character . drawing . figure"
 
     def decompose(self, image: np.ndarray) -> Optional[Dict]:
@@ -169,8 +171,8 @@ class ConcreteObjectDecomposer(IObjectDecomposer):
         Input: Ảnh + Prompt
         Output: List Dict chứa {name, bbox, score, polygon}
         """
-        if DEVICE == "cuda":
-            torch.cuda.empty_cache()
+        # if DEVICE == "cuda":
+        #     torch.cuda.empty_cache()
 
         # 1. Setup ảnh cho SAM (Làm 1 lần duy nhất cho toàn bộ prompt)
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
