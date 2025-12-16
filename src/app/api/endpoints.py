@@ -1,20 +1,21 @@
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, UploadFile, Query
 
 from src.app.services.animation_service import AnimationService
 from src.app.services.character_service import CharacterService
 from src.app.services.game_service import GameService
+from src.app.services.background_service import BackgroundService
 
 router = APIRouter()
 char_service = CharacterService()
 anim_service = AnimationService()
 game_service = GameService()
+background_service = BackgroundService()
 
 
 # --- 1. Create Character ---
 @router.post("/character/create-by-face")
 async def create_char_face(
-    face_image: UploadFile = File(...),
-    body_image: UploadFile = File(...)
+    face_image: UploadFile = File(...), body_image: UploadFile = File(...)
 ):
     return await char_service.create_from_face(face_image, body_image)
 
@@ -43,6 +44,43 @@ async def anim_step2(anim_id: str):
 @router.post("/animation/{anim_id}/step3")
 async def anim_step3(anim_id: str, action: str = "walk"):
     return await anim_service.step3_animate(anim_id, action)
+
+
+# --- 3. Create Background ---
+@router.post(
+    "/background/{anim_id}/analyze/model",
+)
+async def analyze_background_model(
+    anim_id: str,
+    file: UploadFile = File(...,
+                            description="Background image file (jpg, png)"),
+    confidence_threshold: float = Query(
+        0.40,
+        ge=0.0,
+        le=1.0,
+        description="Confidence threshold for object detection (0.0 to 1.0)",
+    ),
+):
+    return await background_service.get_polygon_by_model(
+        anim_id=anim_id, file=file, confidence_threshold=confidence_threshold
+    )
+
+
+@router.post(
+    "/background/{anim_id}/analyze/svg",
+)
+async def analyze_background_svg(
+    anim_id: str,
+    file: UploadFile = File(...,
+                            description="Background image file (jpg, png)"),
+    top_k: int = Query(
+        30, ge=1, le=100, description="Number of top polygons to extract"
+    ),
+):
+    return await background_service.get_polygon_by_svg(
+        anim_id=anim_id, file=file, top_k=top_k
+    )
+
 
 # --- 4. Create Game Zone ---
 @router.post("/game/{game_id}/get_resource")

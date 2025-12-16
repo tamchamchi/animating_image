@@ -7,6 +7,7 @@ from src.text_to_image import NanoBananaGenerator
 from src.concept_decomposer import ConcreteObjectDecomposer
 from src.pose_estimator import MMPoseEstimator
 from src.animator import MetaAnimator
+from src.img_to_vector import VtracerBinarySearch
 
 class AIContainer:
     def __init__(self):
@@ -26,6 +27,8 @@ class AIContainer:
         )
         
         self.animator = MetaAnimator()
+
+        self.svg_converter = VtracerBinarySearch()
 
         # 3. Concurrency Control
         self.semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_TASKS)
