@@ -2,6 +2,7 @@ import json
 import os
 
 import aiofiles
+import numpy as np
 from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
 from PIL import Image, ImageSequence
@@ -18,9 +19,12 @@ class GameService:
 
     def _trim_gif_bottom(self, file_path: str) -> str:
         """
-        Cắt khoảng trắng thừa ở dưới chân nhân vật trong GIF
-        nhưng VẪN GIỮ NGUYÊN BACKGROUND TRONG SUỐT.
+        Cắt khoảng trắng thừa dưới chân GIF,
+        dịch nhân vật xuống sát đáy,
+        thêm bóng đen lệch trái 5px,
+        vẫn giữ background trong suốt & animation.
         """
+
         file_dir = os.path.dirname(file_path)
         filename = os.path.basename(file_path)
         name, ext = os.path.splitext(filename)
@@ -28,61 +32,92 @@ class GameService:
         trimmed_filename = f"{name}_trimmed{ext}"
         trimmed_path = os.path.join(file_dir, trimmed_filename)
 
+        # nếu đã xử lý rồi thì bỏ qua
         if os.path.exists(trimmed_path):
             return trimmed_filename
 
         try:
             with Image.open(file_path) as im:
-                # 1. Lấy thông tin Transparency gốc (QUAN TRỌNG)
-                # GIF dùng Palette mode ('P'), transparency là index của màu trong suốt trong bảng màu.
                 transparency_index = im.info.get("transparency")
 
-                # 2. Tính toán điểm thấp nhất (Max Bottom) dựa trên RGBA
-                # Chuyển sang RGBA tạm thời để hàm getbbox() nhận diện chính xác độ trong suốt (alpha channel)
                 max_bottom = 0
                 frames = []
 
+                # ========= 1. detect bottom chung ==========
                 for frame in ImageSequence.Iterator(im):
-                    # Copy frame gốc (Mode P) để dành cho việc cắt sau này
-                    original_frame = frame.copy()
-                    frames.append(original_frame)
+                    original = frame.copy()
+                    frames.append(original)
 
-                    # Convert sang RGBA chỉ để tính toán bbox (không dùng để save vì sẽ làm tăng dung lượng GIF)
-                    rgba_frame = frame.convert("RGBA")
-                    bbox = rgba_frame.getbbox()
+                    rgba = frame.convert("RGBA")
+                    bbox = rgba.getbbox()
 
                     if bbox:
-                        # bbox = (left, top, right, bottom)
-                        if bbox[3] > max_bottom:
-                            max_bottom = bbox[3]
+                        max_bottom = max(max_bottom, bbox[3])
 
-                # Nếu ảnh rỗng hoặc không tìm thấy điểm cắt, trả về file gốc
                 if max_bottom == 0:
                     return filename
 
-                # 3. Thực hiện Crop trên các frame gốc (Mode P)
                 width = im.size[0]
                 cropped_frames = []
 
+                # ========= 2. xử lý từng frame ==========
                 for frame in frames:
-                    # Crop trực tiếp trên Mode P để giữ nguyên bảng màu
+                    # crop theo bottom chung
                     cropped = frame.crop((0, 0, width, max_bottom))
-                    cropped_frames.append(cropped)
+                    rgba = cropped.convert("RGBA")
 
-                # 4. Lưu file mới
+                    # detect alpha để dịch xuống đáy
+                    arr = np.array(rgba)
+                    alpha = arr[:, :, 3]
+                    ys, xs = np.where(alpha > 10)
+
+                    if len(ys) > 0:
+                        h = arr.shape[0]
+                        bottom = ys.max()
+                        shift_y = (h - 1) - bottom
+
+                        if shift_y > 0:
+                            shifted = Image.new("RGBA", (width, max_bottom), (0, 0, 0, 0))
+                            shifted.paste(rgba, (0, shift_y))
+                            rgba = shifted
+
+                    # ====== build shadow ======
+                    arr2 = np.array(rgba)
+                    alpha2 = arr2[:, :, 3]
+
+                    shadow = np.zeros_like(arr2)
+                    shadow[:, :, 3] = (alpha2 * 0.8).astype(np.uint8)
+                    shadow_img = Image.fromarray(shadow, mode="RGBA")
+
+                    # canvas rộng hơn để tránh crop trái
+                    canvas_w = rgba.size[0] + 5
+                    canvas_h = rgba.size[1]
+
+                    canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+
+                    # paste shadow lệch trái
+                    canvas.paste(shadow_img, (0, 0))
+
+                    # paste nhân vật chính
+                    canvas.paste(rgba, (10, 0), rgba)
+
+                    rgba = canvas
+
+                    # convert về P để giữ transparency đúng
+                    final_frame = rgba.convert("P", palette=Image.ADAPTIVE)
+                    cropped_frames.append(final_frame)
+
+                # ========= 3. Save GIF ==========
                 if cropped_frames:
-                    # Các tham số save() bắt buộc để giữ animation và transparency mượt mà
                     save_kwargs = {
                         "save_all": True,
                         "append_images": cropped_frames[1:],
-                        "loop": 0,  # Lặp vô tận
+                        "loop": 0,
                         "duration": im.info.get("duration", 100),
-                        # 2 = Restore to background color (Xóa frame cũ đi -> Tránh bị chồng hình)
                         "disposal": 2,
-                        "optimize": False,  # Tắt optimize đôi khi giúp giữ bảng màu ổn định hơn
+                        "optimize": False,
                     }
 
-                    # Nếu file gốc có transparency, truyền lại đúng index đó
                     if transparency_index is not None:
                         save_kwargs["transparency"] = transparency_index
 
@@ -95,6 +130,7 @@ class GameService:
             return filename
 
         return filename
+
 
     async def get_resources(self, game_id: str):
         """
