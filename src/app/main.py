@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # ===== STATIC FILES =====
-app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
+app.mount("/api/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
 # ===== API =====
-app.include_router(router, prefix="/api/v1")
+app.include_router(router, prefix="/api")
