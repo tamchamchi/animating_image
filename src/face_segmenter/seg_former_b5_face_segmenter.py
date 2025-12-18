@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from PIL import Image
 from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
-
 from .interface import IFaceSegmenter
 
 
@@ -47,7 +46,7 @@ class SegFormerB5FaceSegmenter(IFaceSegmenter):
         """
         ys, xs = np.where(face_mask > 0)
         if len(xs) == 0:
-            return None 
+            return None
 
         x1, y1 = xs.min(), ys.min()
         x2, y2 = xs.max(), ys.max()
@@ -124,29 +123,49 @@ class SegFormerB5FaceSegmenter(IFaceSegmenter):
         self,
         body_image: np.ndarray,
         face_region: np.ndarray,
-        anchor_point=(360, 20),
-        face_scale=(360, 360),
+        face_scale=(256, 256),
+        body_scale=(512, 768),
+        x_offset: int = 5,
+        y_offset: int = 15
     ):
         body_pil = Image.fromarray(body_image).convert("RGBA")
         face_pil = Image.fromarray(face_region).convert("RGBA")
 
-        # Resize face by user request
+        # --- scale images ---
+        body_pil = body_pil.resize(body_scale, Image.LANCZOS)
         face_pil = face_pil.resize(face_scale, Image.LANCZOS)
 
-        # Build alpha from non-black pixels
+        # --- detect alpha for head ---
         face_np = np.array(face_region)
         alpha_mask = np.any(face_np > 0, axis=-1).astype(np.uint8) * 255
         alpha_mask = Image.fromarray(alpha_mask).resize(face_scale)
         face_pil.putalpha(alpha_mask)
 
         face_w, face_h = face_pil.size
-        ax, ay = anchor_point
 
-        # center-anchor
+        # ========== AUTO FIND HEAD ANCHOR ==========
+        body_np = np.array(body_pil)
+
+        # find first non-white pixel along height
+        # (body likely has white background)
+        ys = np.where(np.any(body_np < 255, axis=-1))[0]   # tolerance
+        if len(ys) == 0:
+            first_pixel_y = body_scale[1] // 4             # fallback
+        else:
+            first_pixel_y = ys[0]
+
+        # center x
+        ax = body_scale[0] // 2 - x_offset
+
+        # align head so chin touches detected pixel
+        ay = first_pixel_y - face_h // 2 + y_offset
+
+        # ====================================================================
+
         tx = ax - face_w // 2
         ty = ay - face_h // 2
 
-        # expand canvas if needed
+        # expand canvas if head goes out-of-bound
         pad_left = max(0, -tx)
         pad_top = max(0, -ty)
         pad_right = max(0, tx + face_w - body_pil.width)

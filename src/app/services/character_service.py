@@ -42,7 +42,7 @@ class CharacterService:
             final_img_rgb = await run_in_threadpool(
                 ai_container.face_segmenter.apply_to_body,
                 cv2.cvtColor(body_img, cv2.COLOR_BGR2RGB),
-                cv2.cvtColor(face_region, cv2.COLOR_BGR2RGB),
+                cv2.cvtColor(face_crop, cv2.COLOR_BGR2RGB),
             )
 
         # 4. Save results
