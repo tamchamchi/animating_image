@@ -123,57 +123,50 @@ class SegFormerB5FaceSegmenter(IFaceSegmenter):
         self,
         body_image: np.ndarray,
         face_region: np.ndarray,
-        face_scale=(256, 256),
-        body_scale=(512, 768),
         x_offset: int = 5,
-        y_offset: int = 15
+        y_offset: int = 15,
+        ratio: float = 0.6
     ):
         body_pil = Image.fromarray(body_image).convert("RGBA")
         face_pil = Image.fromarray(face_region).convert("RGBA")
 
-        # --- scale images ---
-        body_pil = body_pil.resize(body_scale, Image.LANCZOS)
-        face_pil = face_pil.resize(face_scale, Image.LANCZOS)
+        # --- Scale ---
+        face_w, face_h = face_pil.size
+        new_w, new_h = int(face_w * ratio), int(face_h * ratio)
+        face_pil = face_pil.resize((new_w, new_h), Image.LANCZOS)
 
         # --- detect alpha for head ---
         face_np = np.array(face_region)
         alpha_mask = np.any(face_np > 0, axis=-1).astype(np.uint8) * 255
-        alpha_mask = Image.fromarray(alpha_mask).resize(face_scale)
+        alpha_mask = Image.fromarray(alpha_mask).resize((new_w, new_h))
         face_pil.putalpha(alpha_mask)
 
         face_w, face_h = face_pil.size
+        body_w, body_h = body_pil.size
 
-        # ========== AUTO FIND HEAD ANCHOR ==========
+        # ===== AUTO FIND HEAD ANCHOR =====
         body_np = np.array(body_pil)
 
-        # find first non-white pixel along height
-        # (body likely has white background)
-        ys = np.where(np.any(body_np < 255, axis=-1))[0]   # tolerance
+        ys = np.where(np.any(body_np < 255, axis=-1))[0]
         if len(ys) == 0:
-            first_pixel_y = body_scale[1] // 4             # fallback
+            first_pixel_y = body_h // 4
         else:
             first_pixel_y = ys[0]
 
-        # center x
-        ax = body_scale[0] // 2 - x_offset
-
-        # align head so chin touches detected pixel
+        ax = body_w // 2 - x_offset
         ay = first_pixel_y - face_h // 2 + y_offset
-
-        # ====================================================================
 
         tx = ax - face_w // 2
         ty = ay - face_h // 2
 
-        # expand canvas if head goes out-of-bound
         pad_left = max(0, -tx)
         pad_top = max(0, -ty)
-        pad_right = max(0, tx + face_w - body_pil.width)
-        pad_bottom = max(0, ty + face_h - body_pil.height)
+        pad_right = max(0, tx + face_w - body_w)
+        pad_bottom = max(0, ty + face_h - body_h)
 
         if any([pad_left, pad_top, pad_right, pad_bottom]):
-            new_w = body_pil.width + pad_left + pad_right
-            new_h = body_pil.height + pad_top + pad_bottom
+            new_w = body_w + pad_left + pad_right
+            new_h = body_h + pad_top + pad_bottom
             canvas = Image.new("RGBA", (new_w, new_h), (255, 255, 255, 0))
             canvas.paste(body_pil, (pad_left, pad_top))
             body_pil = canvas
