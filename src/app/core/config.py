@@ -27,6 +27,8 @@ class Settings:
     MAX_CONCURRENT_TASKS: int = int(os.getenv("MAX_CONCURRENT_TASKS", 2))
     DEVICE: str = os.getenv("DEVICE", "cpu")
 
+    THIRD_PARTY_WEBSOCKET_URL = os.getenv("THIRD_PARTY_WEBSOCKET_URL")
+
 
 settings = Settings()
 

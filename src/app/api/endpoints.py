@@ -1,18 +1,23 @@
-from fastapi import APIRouter, File, Form, UploadFile, Query
+from fastapi import APIRouter, File, Form, Query, UploadFile
 
 from src.app.services.animation_service import AnimationService
+from src.app.services.background_service import BackgroundService
 from src.app.services.character_service import CharacterService
 from src.app.services.game_service import GameService
-from src.app.services.background_service import BackgroundService
+from src.app.services.websocket_service import WebSocketService
+from src.app.core.config import settings
+from src.app.schema.location_data import LocationData
 
 router = APIRouter()
 char_service = CharacterService()
 anim_service = AnimationService()
 game_service = GameService()
 background_service = BackgroundService()
-
+websocket_service = WebSocketService(settings.THIRD_PARTY_WEBSOCKET_URL)
 
 # --- 1. Create Character ---
+
+
 @router.post("/character/create-by-face")
 async def create_char_face(
     face_image: UploadFile = File(...), body_image: UploadFile = File(...)
@@ -86,3 +91,9 @@ async def analyze_background_svg(
 @router.post("/game/{game_id}/get_resource")
 async def get_resource(game_id: str):
     return await game_service.get_resources(game_id)
+
+
+@router.post("/updateLocation")
+async def update_character_location(location_data: LocationData):
+    result = await websocket_service.send_data_to_third_party(location_data.dict())
+    return result
