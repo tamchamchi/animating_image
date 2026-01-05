@@ -1,18 +1,19 @@
-import os
-import cv2
 import json
-import time
 import logging
+import os
+import time
 from pathlib import Path
-from PIL import Image
-from dotenv import load_dotenv
 
-from fastapi.concurrency import run_in_threadpool
+import cv2
+from dotenv import load_dotenv
 from fastapi import UploadFile
+from fastapi.concurrency import run_in_threadpool
+from PIL import Image
 
 from src.app.core.config import settings
 from src.app.core.container import ai_container
 from src.app.utils.image_ops import read_image_as_numpy
+from src.app.utils.modifie_json import assign_polygon_ids_by_area
 from src.utils.svg_file import (
     extract_topk_polygons,
     get_svg_size,
@@ -35,13 +36,15 @@ class BackgroundService:
         if not self.targets_file_path.exists():
             return {}
         try:
-            with open(self.targets_file_path, 'r', encoding='utf-8') as f:
+            with open(self.targets_file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error reading targets: {e}")
             return {}
 
-    async def get_polygon_by_model(self, anim_id: str, file: UploadFile, confidence_threshold: float):
+    async def get_polygon_by_model(
+        self, anim_id: str, file: UploadFile, confidence_threshold: float
+    ):
         start_t = time.time()
         logger.info(f"===> [BG MODEL] Detect objects for ID: {anim_id}")
 
@@ -56,7 +59,8 @@ class BackgroundService:
         logger.info(f"     [BG MODEL] {anim_id} waiting for SEMAPHORE...")
         async with ai_container.semaphore:
             logger.info(
-                f"     [BG MODEL] {anim_id} ACQUIRED SEMAPHORE. Running Object Detection...")
+                f"     [BG MODEL] {anim_id} ACQUIRED SEMAPHORE. Running Object Detection..."
+            )
             for output_name, model_prompt in targets.items():
                 logger.info(f"        Detecting target: {output_name}")
                 detections = await run_in_threadpool(
@@ -66,19 +70,22 @@ class BackgroundService:
                     threshold=confidence_threshold,
                 )
                 for det in detections:
-                    final_output.append({
-                        "name": output_name,
-                        "bbox": det['bbox'],
-                        "score": det['score'],
-                        "polygon": det["polygon"]
-                    })
+                    final_output.append(
+                        {
+                            "name": output_name,
+                            "bbox": det["bbox"],
+                            "score": det["score"],
+                            "polygon": det["polygon"],
+                        }
+                    )
+
+                final_output = assign_polygon_ids_by_area(final_output)
 
         json_path = os.path.join(work_dir, "detected_objects.json")
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(final_output, f, indent=2)
 
-        logger.info(
-            f"<=== [BG MODEL] Completed in {time.time() - start_t:.2f}s")
+        logger.info(f"<=== [BG MODEL] Completed in {time.time() - start_t:.2f}s")
         return final_output
 
     async def get_polygon_by_svg(self, anim_id: str, file: UploadFile, top_k: int):
@@ -95,11 +102,10 @@ class BackgroundService:
         logger.info(f"     [BG SVG] {anim_id} waiting for SEMAPHORE...")
         async with ai_container.semaphore:
             logger.info(
-                f"     [BG SVG] {anim_id} ACQUIRED SEMAPHORE. Running SVG AI...")
+                f"     [BG SVG] {anim_id} ACQUIRED SEMAPHORE. Running SVG AI..."
+            )
             svg_content = await run_in_threadpool(
-                ai_container.svg_converter.convert,
-                images=[pil_bg],
-                limit=10000
+                ai_container.svg_converter.convert, images=[pil_bg], limit=10000
             )
 
             svg_path = work_dir / "background.svg"
@@ -109,13 +115,17 @@ class BackgroundService:
                 polys = extract_topk_polygons(svg_path, top_k=top_k)
                 svg_w, svg_h = get_svg_size(svg_path)
                 bg_h, bg_w = bg_img.shape[:2]
-                restored = [restore_polygon_to_image_coords(
-                    poly, svg_w, svg_h, bg_w, bg_h) for poly in polys]
-                return polygons_to_json_object(restored[1:])
+                restored = [
+                    restore_polygon_to_image_coords(poly, svg_w, svg_h, bg_w, bg_h)
+                    for poly in polys
+                ]
+
+                restored = polygons_to_json_object(restored[1:])
+                return assign_polygon_ids_by_area(restored)
 
             final_output = await run_in_threadpool(process_svg)
 
-        with open(work_dir / "detected_objects.json", 'w') as f:
+        with open(work_dir / "detected_objects.json", "w") as f:
             json.dump(final_output, f, indent=2)
 
         logger.info(f"<=== [BG SVG] Completed in {time.time() - start_t:.2f}s")

@@ -1,7 +1,6 @@
 import asyncio
 from src.app.core.config import settings
 
-# Import các class AI của bạn từ thư mục src
 from src.face_segmenter import SegFormerB5FaceSegmenter
 from src.text_to_image import NanoBananaGenerator
 from src.concept_decomposer import ConcreteObjectDecomposer
@@ -14,7 +13,7 @@ class AIContainer:
         print("--- LOADING AI MODELS (This may take a while) ---")
         
         # 1. Init Character Creators
-        self.face_segmenter = SegFormerB5FaceSegmenter(device=settings.DEVICE) # hoặc cpu
+        self.face_segmenter = SegFormerB5FaceSegmenter(device=settings.DEVICE)
         self.generator = NanoBananaGenerator(api_key=settings.GEMINI_API_KEY)
         
         # 2. Init Animation Tools

@@ -1,5 +1,4 @@
 import logging
-import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,14 +6,10 @@ from fastapi.staticfiles import StaticFiles
 
 from src.app.api.endpoints import router
 from src.app.core.config import settings
+from src.app.core.logger_config import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s - %(message)s",
-    datefmt="%H:%M:%S",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-
+setup_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI Character & Animation BE")
 
