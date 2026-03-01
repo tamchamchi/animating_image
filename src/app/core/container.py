@@ -7,6 +7,7 @@ from src.concept_decomposer import ConcreteObjectDecomposer
 from src.pose_estimator import MMPoseEstimator
 from src.animator import MetaAnimator
 from src.img_to_vector import VtracerBinarySearch
+from src.text_to_speech import GoogleTTSConvetor
 
 class AIContainer:
     def __init__(self):
@@ -27,7 +28,9 @@ class AIContainer:
         
         self.animator = MetaAnimator()
 
-        self.svg_converter = VtracerBinarySearch()
+        self.svg_convertor = VtracerBinarySearch()
+
+        self.tts_convetor = GoogleTTSConvetor(api_key=settings.GEMINI_API_KEY)
 
         # 3. Concurrency Control
         self.semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_TASKS)

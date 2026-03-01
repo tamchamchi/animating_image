@@ -119,5 +119,21 @@ def create_api_router(connected_websocket_clients: set) -> APIRouter:
             logger.warning(
                 "No WebSocket clients connected to send location data.")
             return {"status": "warning", "message": "No WebSocket clients connected"}
-
+    
+    # --- 6. Text To Speech ---
+    @router.post("/background/tts/{anim_id}")
+    async def text_to_speech(
+        anim_id: str,
+        text: str = Form(..., description="Text cần chuyển thành giọng nói"),
+        filename: str = Form("narration.wav"),
+        voice: str = Form("Zephyr")
+    ):
+        return await background_service.text_to_speech(
+            anim_id=anim_id,
+            text=text,
+            filename=filename,
+            voice=voice
+        )
+    
     return router
+

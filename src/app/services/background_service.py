@@ -85,7 +85,8 @@ class BackgroundService:
         with open(json_path, "w") as f:
             json.dump(final_output, f, indent=2)
 
-        logger.info(f"<=== [BG MODEL] Completed in {time.time() - start_t:.2f}s")
+        logger.info(
+            f"<=== [BG MODEL] Completed in {time.time() - start_t:.2f}s")
         return final_output
 
     async def get_polygon_by_svg(self, anim_id: str, file: UploadFile, top_k: int):
@@ -105,7 +106,8 @@ class BackgroundService:
                 f"     [BG SVG] {anim_id} ACQUIRED SEMAPHORE. Running SVG AI..."
             )
             svg_content = await run_in_threadpool(
-                ai_container.svg_converter.convert, images=[pil_bg], limit=10000
+                ai_container.svg_convertor.convert, images=[
+                    pil_bg], limit=10000
             )
 
             svg_path = work_dir / "background.svg"
@@ -116,7 +118,8 @@ class BackgroundService:
                 svg_w, svg_h = get_svg_size(svg_path)
                 bg_h, bg_w = bg_img.shape[:2]
                 restored = [
-                    restore_polygon_to_image_coords(poly, svg_w, svg_h, bg_w, bg_h)
+                    restore_polygon_to_image_coords(
+                        poly, svg_w, svg_h, bg_w, bg_h)
                     for poly in polys
                 ]
 
@@ -130,3 +133,35 @@ class BackgroundService:
 
         logger.info(f"<=== [BG SVG] Completed in {time.time() - start_t:.2f}s")
         return final_output
+
+    async def text_to_speech(
+        self,
+        anim_id: str,
+        text: str,
+        filename: str = "narration.wav",
+        voice: str = "Kore",
+    ):
+        start_t = time.time()
+        logger.info(f"===> [TTS] Generate speech for ID: {anim_id}")
+
+        work_dir = Path(self._get_path(anim_id))
+        work_dir.mkdir(parents=True, exist_ok=True)
+
+        output_path = work_dir / filename
+
+        logger.info(f"     [TTS] {anim_id} waiting for SEMAPHORE...")
+        async with ai_container.semaphore:
+            logger.info(
+                f"     [TTS] {anim_id} ACQUIRED SEMAPHORE. Running TTS...")
+
+            def run_tts():
+                return ai_container.tts_convetor.convert(
+                    prompt=text,
+                    output_path=str(output_path),
+                    voice=voice,
+                )
+
+            wav_path = await run_in_threadpool(run_tts)
+
+        logger.info(f"<=== [TTS] Completed in {time.time() - start_t:.2f}s")
+        return str(wav_path)

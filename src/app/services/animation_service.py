@@ -11,7 +11,7 @@ from fastapi.concurrency import run_in_threadpool
 from src.app.core.config import settings
 from src.app.core.container import ai_container
 from src.app.utils.image_ops import (
-    save_upload_file,
+    save_upload_file, resize_by_scale
 )  # Added read_image_as_numpy for safety
 
 # Initialize logger for this module
@@ -61,13 +61,15 @@ class AnimationService:
 
         anim_id = str(uuid.uuid4())
         work_dir = self._get_path(anim_id)
-        os.makedirs(work_dir, exist_ok=True)  # Ensure the workspace directory exists
+        # Ensure the workspace directory exists
+        os.makedirs(work_dir, exist_ok=True)
 
         # Save the original input character image to the workspace
         original_image_filename = "original.png"
         file_path = os.path.join(work_dir, original_image_filename)
         await save_upload_file(file, file_path)
-        logger.debug(f"Saved original image for session {anim_id} to {file_path}")
+        logger.debug(
+            f"Saved original image for session {anim_id} to {file_path}")
 
         logger.info(
             f"<=== [INIT SESSION] Session {anim_id} initialized in {time.time() - start_t:.2f}s."
@@ -95,7 +97,8 @@ class AnimationService:
                            or if decomposition fails (400).
         """
         start_t = time.time()
-        logger.info(f"===> [STEP 1] Starting decomposition for session ID: {anim_id}")
+        logger.info(
+            f"===> [STEP 1] Starting decomposition for session ID: {anim_id}")
 
         work_dir = self._get_path(anim_id)
         input_path = os.path.join(work_dir, "original.png")
@@ -113,16 +116,37 @@ class AnimationService:
         # Using read_image_as_numpy which handles file I/O safely and returns numpy array
         # Assuming read_image_as_numpy can also take a file path if implemented for it,
         # otherwise cv2.imread is fine as it's typically faster for local files.
-        img = cv2.imread(input_path)
-        if img is None:
-            logger.error(
-                f"     [STEP 1] Could not read image at {input_path} for session {anim_id}."
-            )
-            raise HTTPException(
-                status_code=500, detail="Failed to read original image."
+        try:
+            img = cv2.imread(input_path)
+
+            if img is None:
+                logger.error(
+                    f"[STEP 1] Could not read image at {input_path} for session {anim_id}"
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to read original image."
+                )
+
+            img = resize_by_scale(img, 0.8)
+
+            logger.info(
+                f"[STEP 1] Image resized successfully (scale=0.8) for session {anim_id}"
             )
 
-        logger.info(f"     [STEP 1] Session {anim_id} is waiting for AI SEMAPHORE...")
+        except HTTPException:
+            raise
+
+        except Exception as e:
+            logger.exception(
+                f"[STEP 1] Unexpected error while loading/resizing image "
+                f"for session {anim_id}: {e}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Unexpected error while processing image."
+            )
+
         async with (
             ai_container.semaphore
         ):  # Acquire semaphore for AI model concurrency control
@@ -158,8 +182,10 @@ class AnimationService:
         cv2.imwrite(
             mask_path, cv2.cvtColor(result["mask"], cv2.COLOR_RGB2BGR)
         )  # Convert back to BGR for saving
-        cv2.imwrite(texture_path, cv2.cvtColor(result["texture"], cv2.COLOR_RGB2BGR))
-        logger.debug(f"Saved mask to {mask_path} and texture to {texture_path}")
+        cv2.imwrite(texture_path, cv2.cvtColor(
+            result["texture"], cv2.COLOR_RGB2BGR))
+        logger.debug(
+            f"Saved mask to {mask_path} and texture to {texture_path}")
 
         logger.info(
             f"<=== [STEP 1] Decomposition for {anim_id} completed in {time.time() - start_t:.2f}s."
@@ -185,7 +211,8 @@ class AnimationService:
             HTTPException: If the texture image is missing (404).
         """
         start_t = time.time()
-        logger.info(f"===> [STEP 2] Starting pose estimation for session ID: {anim_id}")
+        logger.info(
+            f"===> [STEP 2] Starting pose estimation for session ID: {anim_id}")
 
         work_dir = self._get_path(anim_id)
         texture_path = os.path.join(work_dir, "texture.png")
@@ -208,7 +235,8 @@ class AnimationService:
         output_yaml = os.path.join(work_dir, "char_cfg.yaml")
         viz_output = os.path.join(work_dir, "pose_viz.png")
 
-        logger.info(f"     [STEP 2] Session {anim_id} is waiting for AI SEMAPHORE...")
+        logger.info(
+            f"     [STEP 2] Session {anim_id} is waiting for AI SEMAPHORE...")
         async with (
             ai_container.semaphore
         ):  # Acquire semaphore for AI model concurrency control
@@ -293,7 +321,8 @@ class AnimationService:
                     detail=f"Missing prerequisite file for animation: {f_name}",
                 )
 
-        logger.info(f"     [STEP 3] Session {anim_id} is waiting for AI SEMAPHORE...")
+        logger.info(
+            f"     [STEP 3] Session {anim_id} is waiting for AI SEMAPHORE...")
         async with (
             ai_container.semaphore
         ):  # Acquire semaphore for AI model concurrency control
@@ -340,7 +369,8 @@ class AnimationService:
                 )
             else:
                 # Fallback: find any GIF if named differently
-                gifs = [f for f in os.listdir(work_dir) if f.lower().endswith(".gif")]
+                gifs = [f for f in os.listdir(
+                    work_dir) if f.lower().endswith(".gif")]
                 if gifs:
                     final_output_filename = gifs[0]
                     logger.warning(
