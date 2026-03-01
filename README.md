@@ -19,9 +19,11 @@ The system is designed with production thinking: clear modularization, easy mode
 
 ### 2) Output character (stylized avatar)
 
-![Character Output Example](assets/example_character.png)
+![Character Output Example](assets/char1.png)
 
-> Note: the second example image is not currently in the repository. Save your provided image as `assets/example_character.png` and it will display correctly in this README.
+### 3) Sample action output (GIF)
+
+![Action Output Example](assets/cr7_siuu.gif)
 
 ## 🧠 Engineering Highlights
 
