@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from PIL import Image
 from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
-
 from .interface import IFaceSegmenter
 
 
@@ -47,7 +46,7 @@ class SegFormerB5FaceSegmenter(IFaceSegmenter):
         """
         ys, xs = np.where(face_mask > 0)
         if len(xs) == 0:
-            return None 
+            return None
 
         x1, y1 = xs.min(), ys.min()
         x2, y2 = xs.max(), ys.max()
@@ -124,37 +123,50 @@ class SegFormerB5FaceSegmenter(IFaceSegmenter):
         self,
         body_image: np.ndarray,
         face_region: np.ndarray,
-        anchor_point=(360, 20),
-        face_scale=(360, 360),
+        x_offset: int = 5,
+        y_offset: int = 15,
+        ratio: float = 0.6
     ):
         body_pil = Image.fromarray(body_image).convert("RGBA")
         face_pil = Image.fromarray(face_region).convert("RGBA")
 
-        # Resize face by user request
-        face_pil = face_pil.resize(face_scale, Image.LANCZOS)
+        # --- Scale ---
+        face_w, face_h = face_pil.size
+        new_w, new_h = int(face_w * ratio), int(face_h * ratio)
+        face_pil = face_pil.resize((new_w, new_h), Image.LANCZOS)
 
-        # Build alpha from non-black pixels
+        # --- detect alpha for head ---
         face_np = np.array(face_region)
         alpha_mask = np.any(face_np > 0, axis=-1).astype(np.uint8) * 255
-        alpha_mask = Image.fromarray(alpha_mask).resize(face_scale)
+        alpha_mask = Image.fromarray(alpha_mask).resize((new_w, new_h))
         face_pil.putalpha(alpha_mask)
 
         face_w, face_h = face_pil.size
-        ax, ay = anchor_point
+        body_w, body_h = body_pil.size
 
-        # center-anchor
+        # ===== AUTO FIND HEAD ANCHOR =====
+        body_np = np.array(body_pil)
+
+        ys = np.where(np.any(body_np < 255, axis=-1))[0]
+        if len(ys) == 0:
+            first_pixel_y = body_h // 4
+        else:
+            first_pixel_y = ys[0]
+
+        ax = body_w // 2 - x_offset
+        ay = first_pixel_y - face_h // 2 + y_offset
+
         tx = ax - face_w // 2
         ty = ay - face_h // 2
 
-        # expand canvas if needed
         pad_left = max(0, -tx)
         pad_top = max(0, -ty)
-        pad_right = max(0, tx + face_w - body_pil.width)
-        pad_bottom = max(0, ty + face_h - body_pil.height)
+        pad_right = max(0, tx + face_w - body_w)
+        pad_bottom = max(0, ty + face_h - body_h)
 
         if any([pad_left, pad_top, pad_right, pad_bottom]):
-            new_w = body_pil.width + pad_left + pad_right
-            new_h = body_pil.height + pad_top + pad_bottom
+            new_w = body_w + pad_left + pad_right
+            new_h = body_h + pad_top + pad_bottom
             canvas = Image.new("RGBA", (new_w, new_h), (255, 255, 255, 0))
             canvas.paste(body_pil, (pad_left, pad_top))
             body_pil = canvas

@@ -2,7 +2,7 @@ import os
 import pygame
 import numpy as np
 from PIL import Image
-from .config import SCREEN_W, SCREEN_H
+import src.render.config as render_cfg
 
 
 def get_scaled_points(raw_points, original_w, original_h):
@@ -19,8 +19,8 @@ def get_scaled_points(raw_points, original_w, original_h):
         list: A list of scaled (x, y) tuples fitting the current screen size.
     """
     # Calculate scaling factors based on current screen configuration
-    scale_x = SCREEN_W / original_w
-    scale_y = SCREEN_H / original_h
+    scale_x = render_cfg.SCREEN_W / original_w
+    scale_y = render_cfg.SCREEN_H / original_h
 
     # Apply scaling to each point
     return [(p[0] * scale_x, p[1] * scale_y) for p in raw_points]

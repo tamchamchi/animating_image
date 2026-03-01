@@ -1,81 +1,237 @@
-# Animating Image
-# Object Decomposer
+# 🎭 Animate Me
 
-sử dụng Grounding DINO và Segment Anything (SAM) để phát hiện, phân đoạn và tách các đối tượng từ một hình ảnh dựa trên mô tả văn bản (text prompts).
+Identity-Preserving Animated Avatar System with Interactive Rendering.
 
-## Yêu cầu hệ thống
+Animate Me is a modular AI system that enables you to:
 
-- **Python 3.12** (Đã kiểm tra trên Google Colab `3.12.12`)
-- **NVIDIA GPU** (Rất khuyến khích để chạy mô hình)
+- Generate cartoon characters from text prompts or input images.
+- Preserve user identity traits after stylization.
+- Create motion (GIFs) from static images.
+- Render characters inside an interactive, game-like environment.
 
----
+The system is designed with production thinking: clear modularization, easy model replacement, and straightforward scalability.
 
-## Hướng dẫn cài đặt
+## 🖼️ Example Results
 
-Vui lòng thực hiện các bước theo **đúng thứ tự**. Môi trường Google Colab đã cài đặt sẵn nhiều thư viện, nhưng khi chạy trên máy cá nhân (local), bạn phải cài đặt chúng.
+### 1) Game scene after character compositing
 
-### Bước 1: Clone dự án và tạo Môi trường ảo
+![Game Scene Example](assets/game.png)
 
-1.  Clone repository này về máy của bạn.
-2.  Mở terminal, điều hướng vào thư mục dự án và tạo một môi trường ảo:
+### 2) Output character (stylized avatar)
 
-    ```bash
-    # Đảm bảo bạn đang dùng Python 3.12
-    python3 -m venv venv
-    ```
+![Character Output Example](assets/example_character.png)
 
-3.  Kích hoạt môi trường ảo:
+> Note: the second example image is not currently in the repository. Save your provided image as `assets/example_character.png` and it will display correctly in this README.
 
-    - Trên macOS/Linux:
-      ```bash
-      source venv/bin/activate
-      ```
-    - Trên Windows (Command Prompt):
-      ```bash
-      venv\Scripts\activate
-      ```
+## 🧠 Engineering Highlights
 
-### Bước 2: Cài đặt PyTorch (Bước quan trọng nhất)
+- Multi-stage AI pipeline: generation → segmentation → pose → animation → rendering.
+- Clear separation between model layer, orchestration layer, and interface layer.
+- FastAPI + WebSocket integration for backend interaction.
+- Interactive runtime support with Pygame.
 
-cài đặt `torch` và `torchvision` thủ công để chúng phù hợp với phần cứng (GPU hoặc CPU) của bạn.
+## 🎯 Problem Statement
 
-Truy cập [Trang chủ chính thức của PyTorch](https://pytorch.org/get-started/locally/) để lấy lệnh cài đặt mới nhất.
+The goal is to build a digital avatar that can:
 
-**Ví dụ phổ biến (cho Python 3.12):**
+- Preserve identity characteristics.
+- Generate natural motion from static images.
+- Support real-time interaction.
 
-- **Nếu bạn có GPU NVIDIA (CUDA 12.1):** (Đây là bản phổ biến nhất)
+Key challenges:
 
-  ```bash
-  pip install torch torchvision --index-url [https://download.pytorch.org/whl/cu121](https://download.pytorch.org/whl/cu121)
-  ```
+- **Identity Preservation**: stylization often removes distinctive facial features.
+- **Static-to-Dynamic Conversion**: generating smooth motion from a single input frame.
+- **Temporal Consistency**: minimizing frame-to-frame flicker.
+- **Interactive Rendering**: integrating animation into a runtime environment.
 
-- **Nếu bạn có GPU NVIDIA (CUDA 11.8):**
+Animate Me addresses the entire pipeline rather than isolated sub-problems.
 
-  ```bash
-  pip install torch torchvision --index-url [https://download.pytorch.org/whl/cu118](https://download.pytorch.org/whl/cu118)
-  ```
+## 🏗️ System Architecture
 
-- **Nếu bạn chỉ dùng CPU (Không khuyến nghị, sẽ rất chậm):**
-  ```bash
-  pip install torch torchvision
-  ```
+```text
+Input (Text / Image)
+        ↓
+Text-to-Image / Upload Handler
+        ↓
+Style Transfer Module
+        ↓
+Object Decomposition & Face Segmentation
+        ↓
+Pose Estimation
+        ↓
+Motion / Animation Generator
+        ↓
+GIF Export  |  Interactive Renderer (Pygame)
+```
 
-### Bước 3: Cài đặt các thư viện còn lại
+### Layered Design
 
-Chỉ sau khi `torch` và `torchvision` đã được cài đặt thành công, bạn mới chạy lệnh này để cài đặt các thư viện phụ thuộc khác:
+1. **Model Layer**
+   - Text-to-Image
+   - Style Transfer
+   - Segmentation
+   - Pose Estimation
+   - Motion Synthesis
+
+2. **Pipeline Layer**
+   - Orchestration
+   - Action scheduling
+   - Frame generation
+   - Character state management
+
+3. **Interface Layer**
+   - Streamlit demo
+   - FastAPI backend
+   - WebSocket server
+   - Pygame runtime
+
+## ⚙️ Tech Stack
+
+- **Core**: Python 3.8, PyTorch, OpenCV.
+- **AI Components**: Text-to-Image, Style Transfer, OpenMMLab/MMPose, Segmentation.
+- **Backend/Runtime**: FastAPI, WebSocket, Streamlit, Pygame.
+- **Environment**: Conda (recommended), CUDA (optional).
+
+## 🔁 End-to-End Pipeline
+
+1. Receive input from text or image.
+2. Generate or normalize the character image.
+3. Apply reference style.
+4. Decompose foreground/background and segment the face.
+5. Estimate poses for each target action.
+6. Generate animation frame sequences.
+7. Export GIFs or render in an interactive environment.
+
+## 📂 Project Structure
+
+```text
+animating_image/
+├── src/
+│   ├── app/                    # FastAPI backend
+│   ├── demo/                   # Streamlit demo
+│   ├── pipeline/               # Pipeline orchestration
+│   ├── animator/               # Motion synthesis engine
+│   ├── pose_estimator/         # Pose estimation
+│   ├── image_style_transfer/   # Stylization
+│   ├── concept_decomposer/     # Object decomposition
+│   ├── face_segmenter/         # Face segmentation
+│   ├── img_to_vector/          # Vectorization
+│   ├── render/                 # Runtime/game rendering
+│   ├── text_to_image/          # Text-to-image
+│   ├── text_to_speech/         # TTS
+│   ├── configs/                # Character config
+│   └── __main__.py
+├── external/                   # Third-party models
+├── assets/
+├── notebook/
+├── requirements.txt
+└── environment.yaml
+```
+
+## 🚀 Installation
+
+### 1) Clone repository
 
 ```bash
+git clone <your-repo-url>
+cd animating_image
+```
+
+### 2) Setup environment
+
+**Conda (recommended)**
+
+```bash
+conda env create -f environment.yaml
+conda activate openmmlab
+```
+
+**pip/venv**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
 pip install -r requirements.txt
 ```
-### Bước 4: Tải trọng số SAM
 
-Code này yêu cầu file trọng số của mô hình SAM...
+### 3) Configure `.env`
 
-1.  Tạo thư mục `checkpoints`:
-    ```bash
-    mkdir -p object_decomposer/checkpoints/
-    ```
-2.  Tải file trọng số `sam_vit_h_4b8939.pth` vào thư mục đó:
-    ```bash
-    wget [https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth](https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth) -P object_decomposer/checkpoints/
-    ```
+```env
+GOOGLE_API_KEY=your_google_api_key
+POSE_MODEL_CFG_PATH=/absolute/path/to/mmpose_config.py
+POSE_MODEL_CKPT_PATH=/absolute/path/to/mmpose_checkpoint.pth
+
+# Optional for API/runtime
+STORAGE_ROOT=/absolute/path/to/storage
+SERVER_IP=0.0.0.0
+SERVER_PORT=8765
+TARGET_OBJECT=/absolute/path/to/target_object.json
+THIRD_PARTY_WEBSOCKET_URL=ws://host:port
+```
+
+## ▶️ Run
+
+### Streamlit demos
+
+```bash
+streamlit run src/demo/app.py
+```
+
+```bash
+streamlit run src/demo/create_animation_demo.py
+```
+
+### FastAPI backend
+
+```bash
+uvicorn src.app.main:app --reload
+```
+
+### Interactive render (Pygame entry)
+
+```bash
+python -m src
+```
+
+### Utility scripts
+
+```bash
+python -m src.test_pipeline
+python -m src.test_animation
+python -m src.test_pygame
+python -m src.test_tts
+```
+
+## 📊 Engineering Considerations
+
+### Scalability
+
+- Split the pipeline into independent modules.
+- Containerize services when needed.
+- Support GPU acceleration.
+
+### Production concerns
+
+- Manage checkpoints/secrets via environment variables.
+- Design APIs with stateless principles.
+- Expand toward a microservice architecture when needed.
+
+### Optimization
+
+- Reduce actions/frames to improve speed.
+- Cache intermediate outputs.
+- Batch pose generation when appropriate.
+
+## 🔗 References
+
+- Animated Drawings (Facebook Research): https://github.com/facebookresearch/AnimatedDrawings.git
+- Frontend (AnimGen Studio): https://github.com/tamchamchi/animgen-studio.git
+
+## 🛠️ Troubleshooting
+
+- Missing API key or model path: check your `.env` file.
+- `src` import errors: run commands from the project root.
+- Checkpoint not found: use absolute paths and verify files exist.
+- Slow CPU execution: reduce actions/frames or use CUDA GPU.

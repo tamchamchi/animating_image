@@ -5,10 +5,12 @@ import sys
 import pygame
 
 # --- IMPORTS ---
-from .config import CFG, PLAYER_START_X, PLAYER_START_Y, SCREEN_H, SCREEN_W
+from .config import CFG, PLAYER_START_X, PLAYER_START_Y
 from .platform import Platform
 from .player import Player
 from .utils import load_gif_frames, create_spotlight_mask
+from .recorder import VideoRecorder
+import src.render.config as render_cfg
 
 
 class Game:
@@ -28,7 +30,32 @@ class Game:
         """
         # 1. Init Pygame
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+
+        bg_path = os.path.join(data_path, "background.jpg")
+        if os.path.exists(bg_path):
+            raw_bg = pygame.image.load(bg_path)
+            bg_w, bg_h = raw_bg.get_size()
+
+            # 2. CẬP NHẬT CONFIG TOÀN CỤC
+            render_cfg.update_screen_settings(bg_w, bg_h)
+
+            # 3. SETUP MÀN HÌNH VỚI KÍCH THƯỚC MỚI
+            self.screen = pygame.display.set_mode(
+                (render_cfg.SCREEN_W, render_cfg.SCREEN_H))
+            self.record_surface = pygame.Surface(
+                (render_cfg.SCREEN_W, render_cfg.SCREEN_H))
+
+            # Scale background cho vừa màn hình
+            self.bg_img = pygame.transform.scale(
+                raw_bg, (render_cfg.SCREEN_W, render_cfg.SCREEN_H))
+            self.original_w = bg_w  # Lưu lại để tính tỷ lệ cho vật thể
+            self.original_h = bg_h
+        else:
+            print(f"Error: Background not found at {bg_path}")
+            sys.exit()
+
+        # self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        # self.record_surface = pygame.Surface((SCREEN_W, SCREEN_H))
         pygame.display.set_caption(CFG["screen"]["caption"])
         self.clock = pygame.time.Clock()
         self.running = True
@@ -55,7 +82,8 @@ class Game:
         self.darkness_opacity = CFG["lighting"]["opacity"]
 
         # Create the darkness layer (covers the whole screen)
-        self.darkness_layer = pygame.Surface((SCREEN_W, SCREEN_H), pygame.SRCALPHA)
+        self.darkness_layer = pygame.Surface(
+            (render_cfg.SCREEN_W, render_cfg.SCREEN_H), pygame.SRCALPHA)
 
         # Generate the light texture once (performance optimization)
         self.spotlight_img = create_spotlight_mask(
@@ -67,18 +95,9 @@ class Game:
         Loads game assets from the specified directory.
         """
         # --- A. PROCESS BACKGROUND ---
-        bg_path = os.path.join(data_path, "background.jpg")
-
-        if os.path.exists(bg_path):
-            raw_bg = pygame.image.load(bg_path)
-            w, h = raw_bg.get_size()
-            self.original_w = w
-            self.original_h = h
-            self.bg_img = pygame.transform.scale(raw_bg, (SCREEN_W, SCREEN_H))
-            print(f"Loaded Background: {w}x{h} -> Scaled to System Config")
-        else:
-            print(f"Error: Background not found at {bg_path}")
-            sys.exit()
+        record_path = os.path.join(data_path, "record.mp4")
+        self.recorder = VideoRecorder(
+            record_path, render_cfg.SCREEN_W, render_cfg.SCREEN_H, self.fps)
 
         # --- B. LOAD ANIMATIONS ---
         asset_scale = tuple(CFG["assets"]["scale"])
@@ -131,7 +150,8 @@ class Game:
                     )
                     self.platforms.add(p)
         except FileNotFoundError:
-            print(f"Warning: {json_path} not found. Only ground platform loaded.")
+            print(
+                f"Warning: {json_path} not found. Only ground platform loaded.")
 
     def handle_events(self):
         """Processes external events."""
@@ -167,33 +187,36 @@ class Game:
         Renders all game objects and applies the spotlight effect.
         Order: Background -> Platforms -> Player -> Spotlight -> UI.
         """
-        # 1. Draw the base game world
+
+        # --- 1. NORMAL GAME DISPLAY (WITH BACKGROUND) ---
         self.screen.blit(self.bg_img, (0, 0))
+
         for p in self.platforms:
             p.draw(self.screen)
         self.player.draw(self.screen)
 
-        # --- 2. APPLY SPOTLIGHT EFFECT (Fog of War) ---
-
-        # A. Fill the darkness layer with black (semi-transparent based on opacity)
+        # ---- SPOTLIGHT EFFECT (ONLY ON DISPLAY) ----
         self.darkness_layer.fill((0, 0, 0, self.darkness_opacity))
 
-        # B. Calculate where to place the spotlight
-        # Center it on the player's position
         light_x = self.player.rect.centerx - self.spotlight_radius
         light_y = self.player.rect.centery - self.spotlight_radius
 
-        # C. "Cut out" the light hole
-        # BLEND_RGBA_SUB subtracts the alpha of the source (spotlight) from the destination (darkness)
-        # Center of spotlight has High Alpha -> Subtracts from Darkness -> Result is Transparent
-        self.darkness_layer.blit(
-            self.spotlight_img, (light_x, light_y), special_flags=pygame.BLEND_RGBA_SUB
-        )
+        self.darkness_layer.blit(self.spotlight_img, (light_x, light_y),
+                                 special_flags=pygame.BLEND_RGBA_SUB)
 
-        # D. Blit the final darkness layer onto the screen
         self.screen.blit(self.darkness_layer, (0, 0))
 
-        # 3. Flip display
+        # --------------------------------------------------------
+        # --- 2. RECORDING MODE ---
+        # --------------------------------------------------------
+        self.record_surface.fill((255, 255, 255))
+
+        self.player.draw(self.record_surface)
+
+        self.record_surface.blit(self.darkness_layer, (0, 0))
+        self.recorder.write(self.record_surface)
+
+        # --- FINAL DISPLAY UPDATE ---
         pygame.display.update()
 
     def run(self):
@@ -205,4 +228,5 @@ class Game:
             self.clock.tick(self.fps)
 
         pygame.quit()
+        self.recorder.close()
         sys.exit()

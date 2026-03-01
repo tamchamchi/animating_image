@@ -2,7 +2,6 @@ import os
 import sys
 import streamlit as st
 from pathlib import Path
-import torch
 from dotenv import load_dotenv
 
 # --- SYSTEM PATH SETUP ---
@@ -21,6 +20,7 @@ from src.pipeline.animation_pipeline import AnimationGenerationPipeline  # noqa:
 from src.pose_estimator.mmpose_estimator import MMPoseEstimator  # noqa: E402
 from src.text_to_image import NanoBananaGenerator  # noqa: E402
 from src.face_segmenter import SegFormerB5FaceSegmenter  # noqa: E402
+from src.img_to_vector import VtracerBinarySearch # noqa: E402
 
 # Import Step Routers
 import steps.step1_character as step1  # noqa: E402
@@ -38,7 +38,8 @@ st.set_page_config(page_title="AI Animation Studio", layout="wide")
 def load_models():
     """Initialize models once and cache them."""
     api_key = os.getenv("GOOGLE_API_KEY")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
     pose_cfg = os.getenv("POSE_MODEL_CFG_PATH")
     pose_ckpt = os.getenv("POSE_MODEL_CKPT_PATH")
 
@@ -54,9 +55,11 @@ def load_models():
     pose_model = MMPoseEstimator(
         cfg_path=pose_cfg, ckpt_path=pose_ckpt, device=device)
 
-    decomposer_instance = ConcreteObjectDecomposer()
+    decomposer_instance = ConcreteObjectDecomposer(device=device)
 
     face_segmenter = SegFormerB5FaceSegmenter(device=device)
+
+    svg_converter = VtracerBinarySearch()
 
     # Initialize Pipeline
     pipeline = AnimationGenerationPipeline(
@@ -66,7 +69,7 @@ def load_models():
         animator=MetaAnimator()
     )
 
-    return pipeline, gen_model, decomposer_instance, face_segmenter
+    return pipeline, gen_model, decomposer_instance, face_segmenter, svg_converter
 
 # --- STATE MANAGEMENT ---
 
@@ -88,7 +91,7 @@ def init_session_state():
 
 def main():
     init_session_state()
-    pipeline, image_generator, object_decomposer, face_segmenter = load_models()
+    pipeline, image_generator, object_decomposer, face_segmenter, svg_converter = load_models()
 
     if not pipeline:
         st.stop()
@@ -111,7 +114,7 @@ def main():
     elif st.session_state.step == 2:
         step2.show(pipeline)
     elif st.session_state.step == 3:
-        step3.show(object_decomposer)
+        step3.show(object_decomposer, svg_converter)
     elif st.session_state.step == 4:
         step4.show()
 

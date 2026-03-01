@@ -4,8 +4,9 @@
 
 # --- Display & Window Settings ---
 screen:
-  width: 1200
-  height: 800
+  width: 1280
+  height: 960
+  scale: 0.8
   fps: 60                      # Target Frames Per Second
   caption: "Lab Platformer"    # Window title text
 
@@ -27,21 +28,21 @@ animation_speeds:
 
 # --- Player Initialization ---
 player:
-  start_x: 400                 # Initial X coordinate spawn point
+  start_x: 300                 # Initial X coordinate spawn point
   start_y: 300                 # Initial Y coordinate spawn point
 
 # --- Platform Visuals & Logic ---
 platform_style:
   padding: 2                   # Padding to prevent the border from being clipped
-  border_color: [255, 255, 255, 80]  # Border color in RGBA (Red, Green, Blue, Alpha)
+  border_color: [255, 255, 255, 10]  # Border color in RGBA (Red, Green, Blue, Alpha)
   border_width: 2              # Thickness of the visible border line
   mask_color: [255, 0, 0, 255] # Color used for collision mask generation (invisible to player)
 
 # --- Lighting Effects (Spotlight/Fog of War) ---
 lighting:
-  radius: 100
-  opacity: 150 
+  radius: 90
+  opacity: 255 
 
 # --- Asset Management ---
 assets:
-  scale: [256, 256]            # Target dimensions [width, height] for asset resizing
+  scale: [128, 128]            # Target dimensions [width, height] for asset resizing
