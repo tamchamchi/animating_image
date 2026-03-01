@@ -17,11 +17,7 @@ The system is designed with production thinking: clear modularization, easy mode
 
 ![Game Scene Example](assets/game.png)
 
-### 2) Output character (stylized avatar)
-
-![Character Output Example](assets/char1.png)
-
-### 3) Sample action output (GIF)
+### 2) Sample action output (GIF)
 
 ![Action Output Example](assets/cr7_siuu.gif)
 
